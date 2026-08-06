@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#151A20">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kontur">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Kontur</title>
+<style>
+:root{--bg:#EDEFF3;--karte:#FFF;--tinte:#111418;--grau:#6B7280;--linie:#E3E6EB;
+  --gruen:#0E9F6E;--rot:#E0473E;--dunkel:#151A20}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tinte);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+#app{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 14px 96px}
+.kopf{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 14px}
+.marke{font-size:15px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.datum{font-size:12px;color:var(--grau);margin-top:2px}
+.badge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--grau);
+  border:1px solid var(--linie);background:var(--karte);padding:5px 9px;border-radius:20px}
+.karte{background:var(--karte);border-radius:16px;padding:18px;margin-bottom:12px;
+  box-shadow:0 1px 2px rgba(16,20,26,.05)}
+.dunkel{background:var(--dunkel);color:#fff}
+h2{font-size:15px;font-weight:650;margin:0 0 12px}
+.text{font-size:13.5px;line-height:1.65;color:var(--grau);margin:0 0 16px}
+.wert{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px;white-space:nowrap}
+.bald{background:#FFF8E6;border:1px solid #F0DFAE;border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.bald-lab{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8A6D1F;margin-bottom:9px;font-weight:700}
+.bald-z{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0}
+.bald-t{color:#8A6D1F;font-weight:400;font-size:11.5px;margin-left:6px}
+.hero{background:var(--dunkel);border-radius:18px;padding:18px;margin-bottom:12px;color:#fff}
+.topf{padding:6px 0}
+.hero .topf+.topf{border-top:1px solid rgba(255,255,255,.13);margin-top:16px;padding-top:16px}
+.karte .topf+.topf{border-top:1px solid var(--linie);margin-top:16px;padding-top:16px}
+.topf-kopf{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.topf-lab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.65}
+.topf-zyk{font-size:11px;opacity:.5;font-variant-numeric:tabular-nums}
+.topf-zahl{font-size:40px;font-weight:600;letter-spacing:-.035em;line-height:1;
+  font-variant-numeric:tabular-nums;margin-bottom:12px}
+.topf-eur{font-size:13px;font-weight:500;letter-spacing:0;opacity:.55;margin-left:8px}
+.topf-fuss{font-size:11.5px;opacity:.55;margin-top:8px;font-variant-numeric:tabular-nums}
+.karte .topf-lab,.karte .topf-fuss,.karte .topf-zyk{color:var(--grau);opacity:1}
+.spur{position:relative;height:7px;background:var(--linie);border-radius:4px}
+.hero .spur{background:rgba(255,255,255,.16)}
+.fuell{height:100%;border-radius:4px;transition:width .3s}
+.soll{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--grau)}
+.hero .soll{background:rgba(255,255,255,.6)}
+.eingabe{display:flex;align-items:baseline;justify-content:flex-end;gap:8px;
+  border-bottom:2px solid var(--tinte);padding-bottom:12px;margin-bottom:16px}
+.eingabe-z{font-size:50px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.045em;line-height:1}
+.eingabe-e{font-size:20px;color:var(--grau);font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{border:1px solid var(--linie);background:var(--bg);border-radius:20px;padding:7px 13px;
+  font-size:12.5px;color:var(--grau);cursor:pointer;font-family:inherit;font-weight:500}
+.chip.on{background:var(--tinte);color:#fff;border-color:var(--tinte)}
+.feld{width:100%;border:1px solid var(--linie);border-radius:11px;background:var(--bg);
+  padding:12px;font-size:16px;font-family:inherit;color:var(--tinte);margin-bottom:16px}
+.feld:focus{outline:none;border-color:var(--tinte)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.taste{background:var(--bg);border:1px solid var(--linie);border-radius:13px;padding:19px 0;
+  font-size:23px;font-weight:500;font-variant-numeric:tabular-nums;cursor:pointer;
+  color:var(--tinte);font-family:inherit;transition:transform .08s,background .12s}
+.taste:active{background:var(--tinte);color:#fff;transform:scale(.97)}
+.vorschau{font-size:12.5px;color:var(--grau);text-align:right;margin-bottom:12px;font-weight:500}
+.vorschau.rot{color:var(--rot)}
+.primaer{width:100%;background:var(--tinte);color:#fff;border:none;border-radius:13px;
+  padding:17px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+.primaer:disabled{background:var(--linie);color:var(--grau)}
+.sekundaer{width:100%;background:none;border:1.5px solid var(--tinte);border-radius:12px;
+  color:var(--tinte);padding:13px;font-size:14px;font-weight:600;cursor:pointer;
+  font-family:inherit;margin-top:10px}
+ul.liste{list-style:none;padding:0;margin:0}
+.zeile{display:flex;align-items:center;gap:9px;padding:12px 0;border-bottom:1px solid var(--linie)}
+.zeile:last-child{border-bottom:none}
+.zeile-h{flex:1;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.zeile-n{color:var(--grau);font-size:11.5px;margin-left:8px;font-weight:400}
+.weg{background:none;border:none;color:#C9CDD4;font-size:19px;cursor:pointer;padding:0 2px}
+.punkt{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--grau);
+  margin-right:8px;vertical-align:middle;flex:none}
+.punkt[data-k=lebensmittel]{background:#0E9F6E}.punkt[data-k=auswaerts]{background:#E0473E}
+.punkt[data-k=shopping]{background:#7C5CFF}.punkt[data-k=freizeit]{background:#F0A020}
+.punkt[data-k=transport]{background:#2E7CF6}.punkt[data-k=geschenke]{background:#D946A6}
+.reihe{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:11px 0;border-bottom:1px solid var(--linie);font-size:13.5px}
+.reihe:last-child{border-bottom:none}
+.reihe.stark{border-bottom:none;border-top:2px solid var(--tinte);font-weight:650;margin-top:4px}
+.vert{margin-bottom:14px}
+.vert-kopf{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:7px;font-weight:500}
+.fz{display:flex;gap:13px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--linie)}
+.fz:last-child{border-bottom:none}
+.fd{width:42px;text-align:center;flex:none;background:var(--bg);border-radius:9px;padding:6px 0}
+.ft{font-size:17px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.fm{font-size:10px;color:var(--grau);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.fi{flex:1;min-width:0}.fn{font-size:14px;font-weight:600}
+.flab{font-size:9.5px;background:var(--tinte);color:#fff;border-radius:4px;padding:2px 5px;
+  margin-left:7px;letter-spacing:.05em;text-transform:uppercase}
+.finfo{font-size:11.5px;color:var(--grau);margin-top:2px;line-height:1.45}
+.fw{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;white-space:nowrap}
+.feldzeile{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:13px 0;border-bottom:1px solid var(--linie);font-size:14px}
+.zahlfeld{width:92px;text-align:right;border:1px solid var(--linie);border-radius:10px;
+  background:var(--bg);padding:9px;font-variant-numeric:tabular-nums;font-size:17px;
+  font-weight:650;color:var(--tinte);font-family:inherit;flex:none}
+.gross{font-size:44px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;margin:6px 0}
+textarea.feld{min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(255,255,255,.95);
+  backdrop-filter:blur(12px);border-top:1px solid var(--linie);max-width:640px;margin:0 auto;
+  padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav button{flex:1;background:none;border:none;padding:15px 4px 17px;font-size:12px;
+  color:var(--grau);cursor:pointer;font-family:inherit;font-weight:550}
+nav button.on{color:var(--tinte);box-shadow:inset 0 2px 0 var(--tinte)}
+.ok{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;background:var(--tinte);
+  color:#fff;padding:11px 20px;border-radius:22px;font-size:14px;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+.ok.an{opacity:1}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav id="nav"></nav>
+<div class="ok" id="toast"></div>
+<script>
+/* ═══ Stammdaten ═══════════════════════════════════════════ */
+const KAT=[
+ {id:"lebensmittel",label:"Lebensmittel",topf:"w_lebensmittel",ref:120},
+ {id:"auswaerts",label:"Auswärts & Kaffee",topf:"w_auswaerts",ref:80},
+ {id:"shopping",label:"Shopping",topf:"m_shopping",ref:150},
+ {id:"freizeit",label:"Freizeit & Events",topf:"m_freizeit",ref:60},
+ {id:"geschenke",label:"Geschenke",topf:null,ref:0},
+ {id:"haushalt",label:"Drogerie & Haushalt",topf:null,ref:40},
+ {id:"transport",label:"Transport",topf:null,ref:50},
+ {id:"gesundheit",label:"Gesundheit",topf:null,ref:30},
+ {id:"sonstiges",label:"Sonstiges",topf:null,ref:0}];
+
+/* Beispielwerte — bitte über die App durch eigene Fixkosten ersetzen */
+const FIX=[
+ {name:"Miete",betrag:900,typ:"monat",tag:1},
+ {name:"Handy & Internet",betrag:40,typ:"monat",tag:2},
+ {name:"Strom",betrag:45,typ:"monat",tag:1},
+ {name:"Nahverkehrsticket",betrag:60,typ:"monat",tag:1},
+ {name:"Versicherung",betrag:25,typ:"monat",tag:2},
+ {name:"Fitnessstudio",betrag:40,typ:"monat",tag:1},
+ {name:"Streaming-Abos",betrag:15,typ:"monat",tag:2},
+ {name:"Rundfunkbeitrag",betrag:55,typ:"quartal",monate:[2,5,8,11],tag:15}];
+
+const EINMAL=[];
+
+const STD={w_lebensmittel:125,w_auswaerts:75,m_shopping:200,m_freizeit:60};
+
+const SEED=[];
+
+/* ═══ Hilfen ═══════════════════════════════════════════════ */
+const f2=n=>new Intl.NumberFormat("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const f0=n=>new Intl.NumberFormat("de-DE",{maximumFractionDigits:0}).format(n||0);
+const MONL=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const tim=d=>new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+const mk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+const wstart=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
+const tdiff=(a,b)=>Math.round((a-b)/864e5);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let S={eintraege:[],budget:{...STD}},tab="erfassen",wert="",kat="lebensmittel",notiz="";
+
+function laden(){
+  try{
+    const r=localStorage.getItem("kontur:daten");
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};return}
+  }catch(e){}
+  const heute=new Date();heute.setHours(12,0,0,0);
+  S.eintraege=SEED.map((s,i)=>{
+    const d=new Date(heute);d.setDate(d.getDate()+s.tsRel);
+    return{id:"seed"+i,ts:d.getTime(),betrag:s.betrag,kat:s.kat,notiz:s.notiz}
+  }).sort((a,b)=>b.ts-a.ts);
+  sichern();
+}
+function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}catch(e){toast("Speichern fehlgeschlagen")}}
+function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("an");setTimeout(()=>e.classList.remove("an"),1400)}
+
+function naechste(f,h){
+  const j=h.getFullYear(),k=[];
+  if(f.typ==="monat"){for(let i=0;i<4;i++){const m=h.getMonth()+i;k.push(new Date(j,m,Math.min(f.tag,tim(new Date(j,m,1)))))}}
+  else{f.monate.forEach(m=>[0,1].forEach(o=>k.push(new Date(j+o,m-1,Math.min(f.tag,tim(new Date(j+o,m-1,1)))))))}
+  const h0=new Date(h.getFullYear(),h.getMonth(),h.getDate());
+  return k.filter(d=>d>=h0).filter(d=>(!f.ab||d>=new Date(f.ab))&&(!f.bis||d<=new Date(f.bis))).sort((a,b)=>a-b)[0]||null;
+}
+
+function rechne(){
+  const now=new Date(),ws=wstart(now).getTime(),m=mk(now);
+  const inW=S.eintraege.filter(e=>e.ts>=ws),inM=S.eintraege.filter(e=>mk(new Date(e.ts))===m);
+  const s=(a,k)=>a.filter(e=>!k||e.kat===k).reduce((x,e)=>x+e.betrag,0);
+  const tag=now.getDate(),tage=tim(now),wtag=((now.getDay()+6)%7)+1;
+  const toepfe=[
+   {id:"w_lebensmittel",label:"Lebensmittel",zyk:"Woche",ist:s(inW,"lebensmittel"),budget:S.budget.w_lebensmittel,pos:wtag,von:7},
+   {id:"w_auswaerts",label:"Auswärts & Kaffee",zyk:"Woche",ist:s(inW,"auswaerts"),budget:S.budget.w_auswaerts,pos:wtag,von:7},
+   {id:"m_shopping",label:"Shopping",zyk:"Monat",ist:s(inM,"shopping"),budget:S.budget.m_shopping,pos:tag,von:tage},
+   {id:"m_freizeit",label:"Freizeit & Events",zyk:"Monat",ist:s(inM,"freizeit"),budget:S.budget.m_freizeit,pos:tag,von:tage}];
+  const h0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const faellig=[...FIX.map(f=>({...f,wann:naechste(f,now)})).filter(f=>f.wann),
+    ...EINMAL.map(e=>({...e,wann:new Date(e.datum),einmalig:1})).filter(e=>e.wann>=h0)].sort((a,b)=>a.wann-b.wann);
+  return{tag,tage,wtag,toepfe,faellig,bald:faellig.filter(f=>tdiff(f.wann,h0)<=7),h0,
+    monatGesamt:s(inM),proKat:KAT.map(k=>({...k,summe:s(inM,k.id)})),anzahl:inM.length};
+}
+
+/* ═══ Bausteine ════════════════════════════════════════════ */
+function topfHTML(t){
+  const rest=t.budget-t.ist,soll=t.budget?(t.budget/t.von)*t.pos:0,ueber=rest<0,vor=soll-t.ist;
+  return`<div class="topf"><div class="topf-kopf"><span class="topf-lab">${t.label}</span>
+   <span class="topf-zyk">${t.zyk} · ${t.pos}/${t.von}</span></div>
+   <div class="topf-zahl">${f0(Math.abs(rest))}<span class="topf-eur">€ ${ueber?"drüber":"frei"}</span></div>
+   <div class="spur"><div class="fuell" style="width:${Math.min(100,t.budget?t.ist/t.budget*100:0)}%;background:${ueber?"var(--rot)":"var(--gruen)"}"></div>
+   <div class="soll" style="left:${Math.min(100,t.budget?soll/t.budget*100:0)}%"></div></div>
+   <div class="topf-fuss">${f0(t.ist)} von ${f0(t.budget)} € · ${vor>=0?f0(vor)+" € Vorsprung":f0(-vor)+" € zu schnell"}</div></div>`;
+}
+
+function erfassen(z){
+  const a=KAT.find(k=>k.id===kat),t=z.toepfe.find(x=>x.id===a.topf);
+  const b=parseFloat(wert.replace(",","."))||0;
+  const danach=t?t.budget-t.ist-b:null;
+  return`<div class="hero">${z.toepfe.slice(0,2).map(topfHTML).join("")}</div>
+  <div class="karte">
+   <div class="eingabe"><span class="eingabe-z">${wert===""?"0":esc(wert)}</span><span class="eingabe-e">€</span></div>
+   <div class="chips">${KAT.map(k=>`<button class="chip${k.id===kat?" on":""}" data-kat="${k.id}">${k.label}</button>`).join("")}</div>
+   <input class="feld" id="notiz" placeholder="Notiz, z. B. Espressolab" value="${esc(notiz)}">
+   <div class="pad">${["1","2","3","4","5","6","7","8","9",",","0","back"].map(x=>`<button class="taste" data-t="${x}">${x==="back"?"⌫":x}</button>`).join("")}</div>
+   ${b>0&&danach!==null?`<div class="vorschau${danach<0?" rot":""}">${danach<0?"Danach "+f0(-danach)+" € über dem Budget":"Danach bleiben "+f0(danach)+" €"}</div>`:""}
+   <button class="primaer" id="buchen"${b<=0?" disabled":""}>Buchen</button>
+  </div>
+  <div class="karte"><h2>Monatstöpfe</h2>${z.toepfe.slice(2).map(topfHTML).join("")}</div>
+  ${S.eintraege.length?`<div class="karte"><h2>Zuletzt</h2><ul class="liste">${S.eintraege.slice(0,15).map(e=>{
+    const k=KAT.find(x=>x.id===e.kat),d=new Date(e.ts);
+    return`<li class="zeile"><span class="punkt" data-k="${e.kat}"></span>
+    <span class="zeile-h">${esc(e.notiz||(k?k.label:"Ausgabe"))}<span class="zeile-n">${k?k.label:""} · ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.</span></span>
+    <span class="wert">${f2(e.betrag)}</span><button class="weg" data-del="${e.id}">×</button></li>`}).join("")}</ul></div>`:""}`;
+}
+
+function faellig(z){
+  const sm=FIX.filter(f=>f.typ==="monat").reduce((s,f)=>s+f.betrag,0);
+  return`<div class="karte dunkel"><div class="topf-lab">Feste Abgänge pro Monat</div>
+   <div class="gross">${f0(sm)} €</div>
+   <div class="topf-fuss">ohne Quartalszahlungen · aus den Kontoauszügen ermittelt</div></div>
+  <div class="karte"><h2>Als Nächstes fällig</h2>${z.faellig.slice(0,14).map(f=>{
+    const t=tdiff(f.wann,z.h0);
+    return`<div class="fz"><div class="fd"><div class="ft">${String(f.wann.getDate()).padStart(2,"0")}</div>
+    <div class="fm">${MONL[f.wann.getMonth()].slice(0,3)}</div></div>
+    <div class="fi"><div class="fn">${esc(f.name)}${f.einmalig?'<span class="flab">einmalig</span>':""}</div>
+    ${f.info?`<div class="finfo">${esc(f.info)}</div>`:""}
+    <div class="finfo">${t===0?"heute":"in "+t+" Tagen"}</div></div>
+    <div class="fw">${f0(f.betrag)} €</div></div>`}).join("")}</div>`;
+}
+
+function referenz(z){
+  return`<div class="karte"><h2>Dein Schnitt</h2>
+   <p class="text">Referenzwerte aus deinen eigenen Kontoauszügen, daneben was du diesen Monat gebucht hast. Trage deine Werte oben in den Konstanten (KAT) ein.</p>
+   ${KAT.filter(k=>k.ref>0).map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe;
+   return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${k.label}</span>
+   <span class="wert">${f0(ist)} / ${f0(k.ref)} €</span></div>
+   <div class="spur"><div class="fuell" style="width:${Math.min(100,ist/k.ref*100)}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>`;
+}
+
+function budgets(){
+  const F=[["w_lebensmittel","Lebensmittel pro Woche",""],
+   ["w_auswaerts","Auswärts pro Woche",""],
+   ["m_shopping","Shopping pro Monat",""],
+   ["m_freizeit","Freizeit pro Monat",""]];
+  const b=S.budget;
+  return`<div class="karte"><h2>Budgets</h2>
+   ${F.map(([id,l,h])=>`<div class="feldzeile"><div><label for="${id}">${l}</label><div class="finfo">${h}</div></div>
+   <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`).join("")}
+   <p class="finfo" style="margin-top:14px;line-height:1.6">Lebensmittel und Auswärts laufen wöchentlich — wer sie monatlich führt, steht in der letzten Woche vor dem Nichts.</p></div>
+  <div class="karte"><h2>Umgerechnet</h2>
+   <div class="reihe"><span>Lebensmittel im Monat</span><span class="wert">${f0(b.w_lebensmittel*4.35)} €</span></div>
+   <div class="reihe"><span>Auswärts im Monat</span><span class="wert">${f0(b.w_auswaerts*4.35)} €</span></div>
+   <div class="reihe stark"><span>Alle vier Töpfe im Monat</span><span class="wert">${f0(b.w_lebensmittel*4.35+b.w_auswaerts*4.35+b.m_shopping+b.m_freizeit)} €</span></div></div>
+  <div class="karte"><h2>Daten sichern</h2>
+   <p class="text">Alles liegt nur auf diesem Gerät. Exportiere regelmäßig, dann kannst du die Daten weitergeben oder wiederherstellen.</p>
+   <button class="sekundaer" id="export">Als Datei exportieren</button>
+   <button class="sekundaer" id="kopieren">In die Zwischenablage</button>
+   <textarea class="feld" id="impfeld" placeholder="Zum Wiederherstellen: exportierten Text hier einfügen" style="margin-top:14px"></textarea>
+   <button class="sekundaer" id="import">Wiederherstellen</button></div>`;
+}
+
+/* ═══ Rendern ══════════════════════════════════════════════ */
+function render(){
+  const z=rechne(),app=document.getElementById("app");
+  const bald=z.bald.length?`<div class="bald"><div class="bald-lab">Diese Woche fällig</div>
+   ${z.bald.map(f=>{const t=tdiff(f.wann,z.h0);
+   return`<div class="bald-z"><span>${esc(f.name)}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?"heute":"in "+t+" T"}</span></span></div>`}).join("")}</div>`:"";
+  app.innerHTML=`<div class="kopf"><div><div class="marke">Kontur</div>
+   <div class="datum">${MONL[new Date().getMonth()]} · Tag ${z.tag}/${z.tage}</div></div>
+   <div class="badge">aus 7 Monaten</div></div>${bald}
+   ${tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets()}`;
+  document.getElementById("nav").innerHTML=[["erfassen","Erfassen"],["faellig","Fällig"],["referenz","Referenz"],["budgets","Budgets"]]
+   .map(([id,l])=>`<button class="${tab===id?"on":""}" data-tab="${id}">${l}</button>`).join("");
+  binden();
+}
+
+function binden(){
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+  document.querySelectorAll("[data-kat]").forEach(b=>b.onclick=()=>{kat=b.dataset.kat;render()});
+  document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
+    const t=b.dataset.t;
+    if(t==="back")wert=wert.slice(0,-1);
+    else if(t===","){if(!wert.includes(",")&&wert!=="")wert+=","}
+    else{const d=wert.split(",")[1];if(!(d!==undefined&&d.length>=2)&&wert.replace(",","").length<6)wert+=t}
+    render()});
+  const n=document.getElementById("notiz");
+  if(n)n.oninput=e=>{notiz=e.target.value};
+  const bu=document.getElementById("buchen");
+  if(bu)bu.onclick=()=>{
+    const b=parseFloat(wert.replace(",","."))||0;if(b<=0)return;
+    S.eintraege.unshift({id:Date.now().toString(36),ts:Date.now(),betrag:b,kat,notiz:notiz.trim()});
+    sichern();wert="";notiz="";render();toast("Gebucht")};
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    S.eintraege=S.eintraege.filter(e=>e.id!==b.dataset.del);sichern();render()});
+  ["w_lebensmittel","w_auswaerts","m_shopping","m_freizeit"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.onchange=e=>{S.budget[id]=Math.max(0,parseFloat(e.target.value.replace(",","."))||0);sichern();render()}});
+  const ex=document.getElementById("export");
+  if(ex)ex.onclick=()=>{
+    const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="kontur-"+new Date().toISOString().slice(0,10)+".json";a.click();toast("Exportiert")};
+  const kp=document.getElementById("kopieren");
+  if(kp)kp.onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(S));toast("Kopiert")}catch(e){toast("Ging nicht")}};
+  const im=document.getElementById("import");
+  if(im)im.onclick=()=>{
+    try{const d=JSON.parse(document.getElementById("impfeld").value);
+      if(!d.eintraege)throw 0;
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})}};sichern();render();toast("Wiederhergestellt")}
+    catch(e){toast("Text nicht lesbar")}};
+}
+
+laden();render();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
