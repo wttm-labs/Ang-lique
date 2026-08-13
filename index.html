@@ -158,13 +158,28 @@ const SEED=[];
 const f2=n=>new Intl.NumberFormat("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const f0=n=>new Intl.NumberFormat("de-DE",{maximumFractionDigits:0}).format(n||0);
 const MONL=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const WOT=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const tim=d=>new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
 const mk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
 const wstart=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
 const tdiff=(a,b)=>Math.round((a-b)/864e5);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const isoDatum=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const wocheDesMonats=d=>{const erster=new Date(d.getFullYear(),d.getMonth(),1),off=(erster.getDay()+6)%7;return Math.ceil((d.getDate()+off)/7)};
+const wochenImMonat=d=>wocheDesMonats(new Date(d.getFullYear(),d.getMonth()+1,0));
+function wochenListe(d){
+  const letzter=new Date(d.getFullYear(),d.getMonth()+1,0);
+  const wochen=[];let start=wstart(new Date(d.getFullYear(),d.getMonth(),1));
+  while(start<=letzter){
+    const ende=new Date(start);ende.setDate(ende.getDate()+6);
+    wochen.push({start:new Date(start),ende});
+    start=new Date(start);start.setDate(start.getDate()+7);
+  }
+  return wochen;
+}
 
-let S={eintraege:[],budget:{...STD}},tab="erfassen",wert="",kat="lebensmittel",notiz="";
+let S={eintraege:[],budget:{...STD}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
+let importText="",importRows=null;
 
 function laden(){
   try{
@@ -181,6 +196,61 @@ function laden(){
 function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}catch(e){toast("Speichern fehlgeschlagen")}}
 function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("an");setTimeout(()=>e.classList.remove("an"),1400)}
 
+const AUTOKAT=[
+ [/rewe|edeka|lidl|aldi|netto|kaufland|tegut|denns|basic ag|hofer/i,"lebensmittel"],
+ [/dm-drogerie|dm drogerie markt|rossmann|müller|budni/i,"haushalt"],
+ [/deutsche bahn|db vertrieb|mvv|vag |uber |free now|taxi|tankstelle|shell|aral|esso|dkv|deutschlandticket/i,"transport"],
+ [/apotheke|arzt|zahnarzt|physio/i,"gesundheit"],
+ [/restaurant|café|cafe |kaffee|bäckerei|baecker|imbiss|lieferando|mcdonald|burger king|kfc|pizza|döner|doener/i,"auswaerts"],
+ [/zalando|amazon|h&m|hm de|zara|mediamarkt|saturn/i,"shopping"],
+ [/kino|spotify|netflix|disney|fitness|crossfit|fit\/one/i,"freizeit"],
+ [/geschenk/i,"geschenke"]];
+function autoKategorie(text){
+  const t=(text||"").toLowerCase();
+  for(const[re,kat]of AUTOKAT)if(re.test(t))return kat;
+  return "sonstiges";
+}
+function parseCSV(text){
+  const zeilen=text.split(/\r?\n/).map(z=>z.trim()).filter(z=>z.length);
+  if(!zeilen.length)return{header:[],rows:[]};
+  const delim=(zeilen[0].match(/;/g)||[]).length>=(zeilen[0].match(/,/g)||[]).length?";":",";
+  const teilen=z=>z.split(delim).map(c=>c.replace(/^"|"$/g,"").trim());
+  const header=teilen(zeilen[0]).map(h=>h.toLowerCase());
+  return{header,rows:zeilen.slice(1).map(teilen)};
+}
+function findSpalte(header,kandidaten){
+  for(const k of kandidaten){const i=header.findIndex(h=>h.includes(k));if(i>=0)return i}
+  return -1;
+}
+function parseBetragDE(s){
+  if(!s)return NaN;
+  let t=s.replace(/[^\d,.\-]/g,"");
+  if(t.includes(",")&&t.includes("."))t=t.replace(/\./g,"").replace(",",".");
+  else if(t.includes(","))t=t.replace(",",".");
+  return parseFloat(t);
+}
+function parseDatumDE(s){
+  if(!s)return null;
+  const m=s.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
+  if(m){let[,t,mo,j]=m;if(j.length===2)j="20"+j;return new Date(+j,+mo-1,+t,12,0,0)}
+  const iso=s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(iso){const[,j,mo,t]=iso;return new Date(+j,+mo-1,+t,12,0,0)}
+  return null;
+}
+function csvEinlesen(){
+  const{header,rows}=parseCSV(importText);
+  if(!rows.length){toast("Keine Zeilen gefunden");return}
+  const iDatum=findSpalte(header,["buchungstag","valuta","datum"]);
+  const iBetrag=findSpalte(header,["betrag","umsatz"]);
+  const iText=findSpalte(header,["verwendungszweck","buchungstext","empfänger","empfaenger","begünstigter","zahlungsempf","name"]);
+  if(iDatum<0||iBetrag<0){toast("Datum- oder Betrag-Spalte nicht erkannt");return}
+  const geparst=rows.map(r=>({datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),text:iText>=0?r[iText]:""}))
+    .filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag<0);
+  if(!geparst.length){toast("Keine Ausgaben gefunden (nur Eingänge?)");return}
+  importRows=geparst.map((r,i)=>({id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:(r.text||"").slice(0,60),kat:autoKategorie(r.text),drin:true}));
+  render();
+}
+
 function naechste(f,h){
   const j=h.getFullYear(),k=[];
   if(f.typ==="monat"){for(let i=0;i<4;i++){const m=h.getMonth()+i;k.push(new Date(j,m,Math.min(f.tag,tim(new Date(j,m,1)))))}}
@@ -194,15 +264,16 @@ function rechne(){
   const inW=S.eintraege.filter(e=>e.ts>=ws),inM=S.eintraege.filter(e=>mk(new Date(e.ts))===m);
   const s=(a,k)=>a.filter(e=>!k||e.kat===k).reduce((x,e)=>x+e.betrag,0);
   const tag=now.getDate(),tage=tim(now),wtag=((now.getDay()+6)%7)+1;
+  const wom=wocheDesMonats(now),womT=wochenImMonat(now);
   const toepfe=[
-   {id:"w_lebensmittel",label:"Lebensmittel",zyk:"Woche",ist:s(inW,"lebensmittel"),budget:S.budget.w_lebensmittel,pos:wtag,von:7},
-   {id:"w_auswaerts",label:"Auswärts & Kaffee",zyk:"Woche",ist:s(inW,"auswaerts"),budget:S.budget.w_auswaerts,pos:wtag,von:7},
-   {id:"m_shopping",label:"Shopping",zyk:"Monat",ist:s(inM,"shopping"),budget:S.budget.m_shopping,pos:tag,von:tage},
-   {id:"m_freizeit",label:"Freizeit & Events",zyk:"Monat",ist:s(inM,"freizeit"),budget:S.budget.m_freizeit,pos:tag,von:tage}];
+   {id:"w_lebensmittel",label:"Lebensmittel",zykZeile:`Woche ${wom} von ${womT}`,ist:s(inW,"lebensmittel"),budget:S.budget.w_lebensmittel,pos:wtag,von:7},
+   {id:"w_auswaerts",label:"Auswärts & Kaffee",zykZeile:`Woche ${wom} von ${womT}`,ist:s(inW,"auswaerts"),budget:S.budget.w_auswaerts,pos:wtag,von:7},
+   {id:"m_shopping",label:"Shopping",zykZeile:`${MONL[now.getMonth()]} · Tag ${tag}/${tage}`,ist:s(inM,"shopping"),budget:S.budget.m_shopping,pos:tag,von:tage},
+   {id:"m_freizeit",label:"Freizeit & Events",zykZeile:`${MONL[now.getMonth()]} · Tag ${tag}/${tage}`,ist:s(inM,"freizeit"),budget:S.budget.m_freizeit,pos:tag,von:tage}];
   const h0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const faellig=[...FIX.map(f=>({...f,wann:naechste(f,now)})).filter(f=>f.wann),
     ...EINMAL.map(e=>({...e,wann:new Date(e.datum),einmalig:1})).filter(e=>e.wann>=h0)].sort((a,b)=>a.wann-b.wann);
-  return{tag,tage,wtag,toepfe,faellig,bald:faellig.filter(f=>tdiff(f.wann,h0)<=7),h0,
+  return{tag,tage,wtag,wom,womT,toepfe,faellig,bald:faellig.filter(f=>tdiff(f.wann,h0)<=7),h0,
     monatGesamt:s(inM),proKat:KAT.map(k=>({...k,summe:s(inM,k.id)})),anzahl:inM.length};
 }
 
@@ -210,7 +281,7 @@ function rechne(){
 function topfHTML(t){
   const rest=t.budget-t.ist,soll=t.budget?(t.budget/t.von)*t.pos:0,ueber=rest<0,vor=soll-t.ist;
   return`<div class="topf"><div class="topf-kopf"><span class="topf-lab">${t.label}</span>
-   <span class="topf-zyk">${t.zyk} · ${t.pos}/${t.von}</span></div>
+   <span class="topf-zyk">${t.zykZeile}</span></div>
    <div class="topf-zahl">${f0(Math.abs(rest))}<span class="topf-eur">€ ${ueber?"drüber":"frei"}</span></div>
    <div class="spur"><div class="fuell" style="width:${Math.min(100,t.budget?t.ist/t.budget*100:0)}%;background:${ueber?"var(--rot)":"var(--gruen)"}"></div>
    <div class="soll" style="left:${Math.min(100,t.budget?soll/t.budget*100:0)}%"></div></div>
@@ -227,6 +298,7 @@ function erfassen(z){
    <div class="chips">${KAT.map(k=>`<button class="chip${k.id===kat?" on":""}" data-kat="${k.id}">${k.label}</button>`).join("")}</div>
    ${!a.topf?`<p class="finfo" style="margin:-6px 0 14px">Ohne Budget-Deckel — für Ausgaben, die anfallen und sich nicht vermeiden lassen (z. B. Geschenke, Einladungen). Zählt nur in die Monatssumme, nicht gegen einen Topf.</p>`:""}
    <input class="feld" id="notiz" placeholder="Notiz, z. B. Espressolab" value="${esc(notiz)}">
+   <input class="feld" id="datum" type="date" value="${datum}" max="${isoDatum(new Date())}" style="margin-top:-6px">
    <div class="pad">${["1","2","3","4","5","6","7","8","9",",","0","back"].map(x=>`<button class="taste" data-t="${x}">${x==="back"?"⌫":x}</button>`).join("")}</div>
    ${b>0&&danach!==null?`<div class="vorschau${danach<0?" rot":""}">${danach<0?"Danach "+f0(-danach)+" € über dem Budget":"Danach bleiben "+f0(danach)+" €"}</div>`:""}
    <button class="primaer" id="buchen"${b<=0?" disabled":""}>Buchen</button>
@@ -255,12 +327,22 @@ function faellig(z){
 }
 
 function referenz(z){
+  const heute=new Date();
+  const rb=wochenListe(heute).map((w,i)=>{
+    const von=w.start.getTime(),bis=w.ende.getTime()+86399999;
+    const posten=S.eintraege.filter(e=>e.ts>=von&&e.ts<=bis);
+    const summe=posten.reduce((s,e)=>s+e.betrag,0);
+    return{...w,nr:i+1,summe,anzahl:posten.length,aktuell:heute>=w.start&&heute<=w.ende};
+  });
   return`<div class="karte"><h2>Dein Schnitt</h2>
    <p class="text">Referenzwerte aus deinen eigenen Kontoauszügen, daneben was du diesen Monat gebucht hast. Trage deine Werte oben in den Konstanten (KAT) ein.</p>
    ${KAT.filter(k=>k.ref>0).map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe;
    return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${k.label}</span>
    <span class="wert">${f0(ist)} / ${f0(k.ref)} €</span></div>
-   <div class="spur"><div class="fuell" style="width:${Math.min(100,ist/k.ref*100)}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>`;
+   <div class="spur"><div class="fuell" style="width:${Math.min(100,ist/k.ref*100)}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>
+  <div class="karte"><h2>Wochenrückblick ${MONL[heute.getMonth()]}</h2>
+   <p class="text">Was pro Woche gebucht wurde — auch nachträglich erfasste Buchungen zählen hier in die richtige Woche.</p>
+   ${rb.map(w=>`<div class="reihe${w.aktuell?" stark":""}"><span>Woche ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · aktuell":""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}</span></div>`).join("")}</div>`;
 }
 
 function budgets(){
@@ -278,6 +360,10 @@ function budgets(){
    <div class="reihe"><span>Lebensmittel im Monat</span><span class="wert">${f0(b.w_lebensmittel*4.35)} €</span></div>
    <div class="reihe"><span>Auswärts im Monat</span><span class="wert">${f0(b.w_auswaerts*4.35)} €</span></div>
    <div class="reihe stark"><span>Alle vier Töpfe im Monat</span><span class="wert">${f0(b.w_lebensmittel*4.35+b.w_auswaerts*4.35+b.m_shopping+b.m_freizeit)} €</span></div></div>
+  <div class="karte"><h2>Kontoauszug importieren</h2>
+   <p class="text">CSV-Export deiner Bank hier einfügen — für rückwirkendes Erfassen, z. B. den ganzen August auf einmal. Datum, Betrag und Verwendungszweck werden erkannt, Ausgaben automatisch kategorisiert. Vor dem Import kannst du jede Zeile noch prüfen und die Kategorie ändern.</p>
+   <textarea class="feld" id="csvfeld" placeholder="CSV-Text hier einfügen">${esc(importText)}</textarea>
+   <button class="sekundaer" id="csvEinlesen">Einlesen</button></div>
   <div class="karte"><h2>Daten sichern</h2>
    <p class="text">Alles liegt nur auf diesem Gerät. Exportiere regelmäßig, dann kannst du die Daten weitergeben oder wiederherstellen.</p>
    <button class="sekundaer" id="export">Als Datei exportieren</button>
@@ -286,15 +372,33 @@ function budgets(){
    <button class="sekundaer" id="import">Wiederherstellen</button></div>`;
 }
 
+function importAnsicht(){
+  const n=importRows.filter(r=>r.drin).length;
+  return`<div class="karte"><h2>Import prüfen</h2>
+   <p class="text">${importRows.length} Buchungen erkannt und automatisch kategorisiert. Kategorie bei Bedarf ändern, Häkchen raus für Zeilen, die nicht rein sollen (z. B. Mieteingang, Umbuchung zwischen eigenen Konten).</p>
+   <ul class="liste">${importRows.map(r=>`<li class="zeile">
+    <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
+    <span class="zeile-h">${esc(r.notiz||"—")}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
+    <select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);font-family:inherit;flex:none">
+     ${KAT.map(k=>`<option value="${k.id}"${k.id===r.kat?" selected":""}>${k.label}</option>`).join("")}
+    </select>
+    <span class="wert">${f2(r.betrag)}</span></li>`).join("")}</ul>
+   <button class="primaer" id="impBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${n} Buchungen importieren</button>
+   <button class="sekundaer" id="impAbbrechen">Abbrechen</button></div>`;
+}
+
 /* ═══ Rendern ══════════════════════════════════════════════ */
 function render(){
-  const z=rechne(),app=document.getElementById("app");
+  const app=document.getElementById("app");
+  if(importRows){app.innerHTML=importAnsicht();document.getElementById("nav").innerHTML="";bindenImport();return}
+  const z=rechne();
   const bald=z.bald.length?`<div class="bald"><div class="bald-lab">Diese Woche fällig</div>
    ${z.bald.map(f=>{const t=tdiff(f.wann,z.h0);
    return`<div class="bald-z"><span>${esc(f.name)}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?"heute":"in "+t+" T"}</span></span></div>`}).join("")}</div>`:"";
+  const heute=new Date();
   app.innerHTML=`<div class="kopf"><div><div class="marke">Angélique</div>
-   <div class="datum">${MONL[new Date().getMonth()]} · Tag ${z.tag}/${z.tage}</div></div>
-   <div class="badge">aus 7 Monaten</div></div>${bald}
+   <div class="datum">${WOT[heute.getDay()]}, ${heute.getDate()}. ${MONL[heute.getMonth()]}</div></div>
+   <div class="badge">Woche ${z.wom} von ${z.womT}</div></div>${bald}
    ${tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets()}`;
   document.getElementById("nav").innerHTML=[["erfassen","Erfassen"],["faellig","Fällig"],["referenz","Referenz"],["budgets","Budgets"]]
    .map(([id,l])=>`<button class="${tab===id?"on":""}" data-tab="${id}">${l}</button>`).join("");
@@ -312,11 +416,15 @@ function binden(){
     render()});
   const n=document.getElementById("notiz");
   if(n)n.oninput=e=>{notiz=e.target.value};
+  const da=document.getElementById("datum");
+  if(da)da.onchange=e=>{datum=e.target.value||isoDatum(new Date())};
   const bu=document.getElementById("buchen");
   if(bu)bu.onclick=()=>{
     const b=parseFloat(wert.replace(",","."))||0;if(b<=0)return;
-    S.eintraege.unshift({id:Date.now().toString(36),ts:Date.now(),betrag:b,kat,notiz:notiz.trim()});
-    sichern();wert="";notiz="";render();toast("Gebucht")};
+    const[jj,mm,tt]=datum.split("-").map(Number),ts=new Date(jj,mm-1,tt,12,0,0).getTime();
+    S.eintraege.push({id:Date.now().toString(36),ts,betrag:b,kat,notiz:notiz.trim()});
+    S.eintraege.sort((x,y)=>y.ts-x.ts);
+    sichern();wert="";notiz="";datum=isoDatum(new Date());render();toast("Gebucht")};
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     S.eintraege=S.eintraege.filter(e=>e.id!==b.dataset.del);sichern();render()});
   ["w_lebensmittel","w_auswaerts","m_shopping","m_freizeit"].forEach(id=>{
@@ -335,6 +443,24 @@ function binden(){
       if(!d.eintraege)throw 0;
       S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})}};sichern();render();toast("Wiederhergestellt")}
     catch(e){toast("Text nicht lesbar")}};
+  const cf=document.getElementById("csvfeld");
+  if(cf)cf.oninput=e=>{importText=e.target.value};
+  const ce=document.getElementById("csvEinlesen");
+  if(ce)ce.onclick=()=>csvEinlesen();
+}
+
+function bindenImport(){
+  document.querySelectorAll("[data-imp-check]").forEach(c=>c.onchange=e=>{
+    const r=importRows.find(x=>x.id===c.dataset.impCheck);r.drin=e.target.checked;render()});
+  document.querySelectorAll("[data-imp-kat]").forEach(s=>s.onchange=e=>{
+    const r=importRows.find(x=>x.id===s.dataset.impKat);r.kat=e.target.value});
+  const ok=document.getElementById("impBestaetigen");
+  if(ok)ok.onclick=()=>{
+    const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),betrag:r.betrag,kat:r.kat,notiz:r.notiz}));
+    S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
+    sichern();const n=neue.length;importRows=null;importText="";tab="referenz";render();toast(n+" importiert")};
+  const ab=document.getElementById("impAbbrechen");
+  if(ab)ab.onclick=()=>{importRows=null;render()};
 }
 
 laden();render();
