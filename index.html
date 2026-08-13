@@ -110,11 +110,13 @@ ul.liste{list-style:none;padding:0;margin:0}
   margin-left:7px;letter-spacing:.05em;text-transform:uppercase}
 .flab.warn{background:var(--warn);color:#fff}
 .medaillen{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-.medaille{text-align:center;padding:14px 4px;border-radius:12px;background:var(--bg);
-  opacity:.4;filter:grayscale(1)}
-.medaille.frei{opacity:1;filter:none}
-.medaille-icon{font-size:24px;margin-bottom:6px;line-height:1}
+.medaille{text-align:center;padding:15px 4px;border-radius:12px;background:var(--bg);
+  color:var(--grau);opacity:.5}
+.medaille.frei{color:var(--gruen);opacity:1}
+.medaille-icon{margin-bottom:7px;display:flex;justify-content:center}
+.medaille-icon svg{width:23px;height:23px}
 .medaille-lab{font-size:9.5px;color:var(--grau);line-height:1.3;font-weight:600}
+.medaille.frei .medaille-lab{color:var(--tinte)}
 .finfo{font-size:11.5px;color:var(--grau);margin-top:2px;line-height:1.45}
 .fw{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;white-space:nowrap}
 .feldzeile{display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -178,9 +180,14 @@ const FIXLABEL={
 
 const EINMAL=[];
 
+const SVGATTR='viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
 const MARKEN=[
- {id:"erster",icon:"🌱"},{id:"serie2",icon:"🔥"},{id:"serie4",icon:"🏆"},
- {id:"monatgruen",icon:"📊"},{id:"rueckwirkend",icon:"⏪"},{id:"import",icon:"📥"}];
+ {id:"erster",svg:`<svg ${SVGATTR}><path d="M6 3v18"/><path d="M6 4l12 4-12 4" fill="currentColor" stroke="none"/></svg>`},
+ {id:"serie2",svg:`<svg ${SVGATTR}><path d="M6 13l6-6 6 6"/><path d="M6 20l6-6 6 6"/></svg>`},
+ {id:"serie4",svg:`<svg ${SVGATTR}><path d="M6 10l6-6 6 6"/><path d="M6 16l6-6 6 6"/><path d="M6 22l6-6 6 6"/></svg>`},
+ {id:"monatgruen",svg:`<svg ${SVGATTR}><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/><path d="M8.5 14l2.5 2.5L16 11.5"/></svg>`},
+ {id:"rueckwirkend",svg:`<svg ${SVGATTR}><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v5h5"/></svg>`},
+ {id:"import",svg:`<svg ${SVGATTR}><path d="M12 4v11"/><path d="M7.5 11l4.5 4.5L16.5 11"/><path d="M4.5 18.5v2a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-2"/></svg>`}];
 
 const STD={w_lebensmittel:125,w_auswaerts:75,m_shopping:200,m_freizeit:60};
 
@@ -227,7 +234,7 @@ const T={
   umgerechnet:"Umgerechnet",lebensmittelMonat:"Lebensmittel im Monat",auswaertsMonat:"Auswärts im Monat",
   alleToepfe:"Alle vier Töpfe im Monat",
   darstellung:"Darstellung",hell:"Hell",dunkel:"Dunkel",sprache:"Sprache",
-  einstellungen:"Einstellungen",zuThemaWechseln:"Hell/Dunkel umschalten",einstellungenOeffnen:"Einstellungen öffnen",einstellungenSchliessen:"Einstellungen schließen",
+  einstellungen:"Profil",zuThemaWechseln:"Hell/Dunkel umschalten",einstellungenOeffnen:"Profil öffnen",einstellungenSchliessen:"Profil schließen",
   csvHeading:"Kontoauszug importieren",
   csvText:"CSV-Export deiner Bank hier einfügen — für rückwirkendes Erfassen, z. B. den ganzen August auf einmal. Datum, Betrag und Verwendungszweck werden erkannt, Ausgaben automatisch kategorisiert. Vor dem Import kannst du jede Zeile noch prüfen und die Kategorie ändern.",
   csvPlaceholder:"CSV-Text hier einfügen",einlesen:"Einlesen",
@@ -284,7 +291,7 @@ const T={
   umgerechnet:"Converted",lebensmittelMonat:"Groceries per month",auswaertsMonat:"Eating out per month",
   alleToepfe:"All four pots per month",
   darstellung:"Appearance",hell:"Light",dunkel:"Dark",sprache:"Language",
-  einstellungen:"Settings",zuThemaWechseln:"Switch light/dark",einstellungenOeffnen:"Open settings",einstellungenSchliessen:"Close settings",
+  einstellungen:"Profile",zuThemaWechseln:"Switch light/dark",einstellungenOeffnen:"Open profile",einstellungenSchliessen:"Close profile",
   csvHeading:"Import bank statement",
   csvText:"Paste your bank's CSV export here — to backfill retroactively, e.g. all of August at once. Date, amount and description get detected, expenses get auto-categorized. Review and adjust every row before importing.",
   csvPlaceholder:"Paste CSV text here",einlesen:"Parse",
@@ -535,7 +542,7 @@ function erfolge(){
    <div class="medaillen">${MARKEN.map(m=>{
      const frei=zustand[m.id];
      return`<div class="medaille${frei?" frei":""}" title="${esc(L("marke_"+m.id+"_text"))}">
-      <div class="medaille-icon">${m.icon}</div>
+      <div class="medaille-icon">${m.svg}</div>
       <div class="medaille-lab">${L("marke_"+m.id+"_titel")}</div></div>`;
    }).join("")}</div></div>`;
 }
@@ -550,8 +557,7 @@ function referenz(z){
   });
   const vormonat=new Date(heute.getFullYear(),heute.getMonth()-1,1),vmKey=mk(vormonat);
   const vmSumme=id=>S.eintraege.filter(e=>e.kat===id&&mk(new Date(e.ts))===vmKey).reduce((s,e)=>s+e.betrag,0);
-  return`${erfolge()}
-  <div class="karte"><h2>${L("deinSchnitt")}</h2>
+  return`<div class="karte"><h2>${L("deinSchnitt")}</h2>
    <p class="text">${L("schnittText")}</p>
    ${KAT.filter(k=>k.ref>0).map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe;
    return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${kl(k.id)}</span>
@@ -570,7 +576,8 @@ function referenz(z){
 }
 
 function einstellungen(){
-  return`<div class="karte"><h2>${L("darstellung")}</h2>
+  return`${erfolge()}
+  <div class="karte"><h2>${L("darstellung")}</h2>
    <div class="chips">
     <button class="chip${theme==='light'?' on':''}" data-theme-set="light">${L("hell")}</button>
     <button class="chip${theme==='dark'?' on':''}" data-theme-set="dark">${L("dunkel")}</button>
