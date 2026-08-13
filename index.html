@@ -6,10 +6,10 @@
 <meta name="theme-color" content="#151A20">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kontur">
+<meta name="apple-mobile-web-app-title" content="Angélique">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Kontur</title>
+<title>Angélique</title>
 <style>
 :root{--bg:#EDEFF3;--karte:#FFF;--tinte:#111418;--grau:#6B7280;--linie:#E3E6EB;
   --gruen:#0E9F6E;--rot:#E0473E;--dunkel:#151A20}
@@ -292,7 +292,7 @@ function render(){
   const bald=z.bald.length?`<div class="bald"><div class="bald-lab">Diese Woche fällig</div>
    ${z.bald.map(f=>{const t=tdiff(f.wann,z.h0);
    return`<div class="bald-z"><span>${esc(f.name)}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?"heute":"in "+t+" T"}</span></span></div>`}).join("")}</div>`:"";
-  app.innerHTML=`<div class="kopf"><div><div class="marke">Kontur</div>
+  app.innerHTML=`<div class="kopf"><div><div class="marke">Angélique</div>
    <div class="datum">${MONL[new Date().getMonth()]} · Tag ${z.tag}/${z.tage}</div></div>
    <div class="badge">aus 7 Monaten</div></div>${bald}
    ${tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets()}`;

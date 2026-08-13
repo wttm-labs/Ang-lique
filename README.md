@@ -1,4 +1,4 @@
-# Kontur
+# Angélique
 
 Haushaltsbuch für den Umzug nach München. Läuft ohne Server, ohne Konto, ohne Tracker.
 Alle Daten liegen im Speicher des Browsers auf dem Gerät.
@@ -17,7 +17,7 @@ Alle Daten liegen im Speicher des Browsers auf dem Gerät.
 **iPhone:** Adresse in Safari öffnen (nicht Chrome), Teilen-Symbol, "Zum Home-Bildschirm".
 **Android:** Adresse in Chrome öffnen, Menü, "App installieren".
 
-Danach startet Kontur wie eine normale App, im Vollbild und ohne Browserleiste. Sie
+Danach startet Angélique wie eine normale App, im Vollbild und ohne Browserleiste. Sie
 funktioniert auch offline, weil ein Service Worker die Dateien vorhält.
 
 ## Daten sichern

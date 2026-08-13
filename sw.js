@@ -1,4 +1,4 @@
-const CACHE = "kontur-v1";
+const CACHE = "angelique-v2";
 const DATEIEN = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
