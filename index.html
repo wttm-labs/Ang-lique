@@ -12,9 +12,9 @@
 <title>Angélique</title>
 <style>
 :root{--bg:#EDEFF3;--karte:#FFF;--tinte:#111418;--grau:#6B7280;--linie:#E3E6EB;
-  --gruen:#0E9F6E;--rot:#E0473E;--dunkel:#151A20;--auf-tinte:#fff;--navbg:rgba(255,255,255,.95)}
+  --gruen:#0E9F6E;--rot:#E0473E;--warn:#D9962E;--dunkel:#151A20;--auf-tinte:#fff;--navbg:rgba(255,255,255,.95)}
 :root[data-theme="dark"]{--bg:#12151A;--karte:#1B212A;--tinte:#EDEFF3;--grau:#8A93A3;
-  --linie:rgba(255,255,255,.09);--dunkel:#232B36;--auf-tinte:#12151A;--navbg:rgba(18,21,26,.9)}
+  --linie:rgba(255,255,255,.09);--warn:#E5A947;--dunkel:#232B36;--auf-tinte:#12151A;--navbg:rgba(18,21,26,.9)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--tinte);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
@@ -108,6 +108,13 @@ ul.liste{list-style:none;padding:0;margin:0}
 .fi{flex:1;min-width:0}.fn{font-size:14px;font-weight:600}
 .flab{font-size:9.5px;background:var(--tinte);color:var(--auf-tinte);border-radius:4px;padding:2px 5px;
   margin-left:7px;letter-spacing:.05em;text-transform:uppercase}
+.flab.warn{background:var(--warn);color:#fff}
+.medaillen{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.medaille{text-align:center;padding:14px 4px;border-radius:12px;background:var(--bg);
+  opacity:.4;filter:grayscale(1)}
+.medaille.frei{opacity:1;filter:none}
+.medaille-icon{font-size:24px;margin-bottom:6px;line-height:1}
+.medaille-lab{font-size:9.5px;color:var(--grau);line-height:1.3;font-weight:600}
 .finfo{font-size:11.5px;color:var(--grau);margin-top:2px;line-height:1.45}
 .fw{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;white-space:nowrap}
 .feldzeile{display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -171,6 +178,10 @@ const FIXLABEL={
 
 const EINMAL=[];
 
+const MARKEN=[
+ {id:"erster",icon:"🌱"},{id:"serie2",icon:"🔥"},{id:"serie4",icon:"🏆"},
+ {id:"monatgruen",icon:"📊"},{id:"rueckwirkend",icon:"⏪"},{id:"import",icon:"📥"}];
+
 const STD={w_lebensmittel:125,w_auswaerts:75,m_shopping:200,m_freizeit:60};
 
 const SEED=[];
@@ -190,13 +201,24 @@ const T={
   danachUeber:v=>`Danach ${f0(v)} € über dem Budget`,danachBleiben:v=>`Danach bleiben ${f0(v)} €`,
   buchen:"Buchen",zuletzt:"Zuletzt",ausgabe:"Ausgabe",
   festeAbgaenge:"Feste Abgänge pro Monat",ohneQuartal:"ohne Quartalszahlungen · aus den Kontoauszügen ermittelt",
+  deineAbos:"Deine Abos",monatlich:"monatlich",quartalsweise:"quartalsweise",endetAm:d=>`endet ${d}`,
   alsNaechstesFaellig:"Als Nächstes fällig",einmalig:"einmalig",
   inTagen:n=>`in ${n} Tagen`,inT:n=>`in ${n} T`,
   deinSchnitt:"Dein Schnitt",
   schnittText:"Referenzwerte aus deinen eigenen Kontoauszügen, daneben was du diesen Monat gebucht hast. Trage deine Werte oben in den Konstanten (KAT) ein.",
+  monatsvergleich:"Monatsvergleich",
+  monatsvergleichText:"Diese Kategorie diesen Monat im Vergleich zum letzten — Pfeil nach oben heißt mehr ausgegeben als im Vormonat.",
   wochenrueckblick:m=>`Wochenrückblick ${m}`,
   rueckblickText:"Was pro Woche gebucht wurde — auch nachträglich erfasste Buchungen zählen hier in die richtige Woche.",
   aktuell:"aktuell",wocheLabel:"Woche",
+  deineErfolge:"Deine Erfolge",
+  erfolgeText:"Medaillen für Meilensteine — fahr mit der Maus drüber oder tippe drauf für Details.",
+  marke_erster_titel:"Erster Schritt",marke_erster_text:"Erste Buchung erfasst.",
+  marke_serie2_titel:"Serie: 2 Wochen",marke_serie2_text:"Zwei Wochen in Folge unter dem Wochenbudget für Lebensmittel und Auswärts.",
+  marke_serie4_titel:"Serie: 4 Wochen",marke_serie4_text:"Vier Wochen in Folge unter dem Wochenbudget für Lebensmittel und Auswärts.",
+  marke_monatgruen_titel:"Monat im Grünen",marke_monatgruen_text:"Ein abgeschlossener Monat, in dem alle vier Töpfe im Budget geblieben sind.",
+  marke_rueckwirkend_titel:"Nachgetragen",marke_rueckwirkend_text:"Eine Buchung rückwirkend auf ein anderes Datum erfasst.",
+  marke_import_titel:"Import-Profi",marke_import_text:"Einen Kontoauszug erfolgreich importiert.",
   budgetsHeading:"Budgets",
   lebensmittelWoche:"Lebensmittel pro Woche",auswaertsWoche:"Auswärts pro Woche",
   shoppingMonat:"Shopping pro Monat",freizeitMonat:"Freizeit pro Monat",
@@ -236,13 +258,24 @@ const T={
   danachUeber:v=>`${f0(v)} € over budget after this`,danachBleiben:v=>`${f0(v)} € left after this`,
   buchen:"Add",zuletzt:"Recent",ausgabe:"Expense",
   festeAbgaenge:"Fixed costs per month",ohneQuartal:"excluding quarterly payments · based on your statements",
+  deineAbos:"Your subscriptions",monatlich:"monthly",quartalsweise:"quarterly",endetAm:d=>`ends ${d}`,
   alsNaechstesFaellig:"Coming up",einmalig:"one-time",
   inTagen:n=>`in ${n} days`,inT:n=>`in ${n}d`,
   deinSchnitt:"Your average",
   schnittText:"Reference values from your own bank statements, next to what you've logged this month. Edit your numbers in the KAT constants above.",
+  monatsvergleich:"Month comparison",
+  monatsvergleichText:"This category this month vs. last month — an upward arrow means you spent more than the month before.",
   wochenrueckblick:m=>`Weekly review — ${m}`,
   rueckblickText:"What got logged per week — entries added after the fact still land in the right week.",
   aktuell:"current",wocheLabel:"Week",
+  deineErfolge:"Your achievements",
+  erfolgeText:"Badges for milestones — hover or tap one for details.",
+  marke_erster_titel:"First Step",marke_erster_text:"Logged your first entry.",
+  marke_serie2_titel:"Streak: 2 weeks",marke_serie2_text:"Two weeks in a row under your weekly groceries and eating-out budget.",
+  marke_serie4_titel:"Streak: 4 weeks",marke_serie4_text:"Four weeks in a row under your weekly groceries and eating-out budget.",
+  marke_monatgruen_titel:"Green month",marke_monatgruen_text:"A completed month where all four pots stayed within budget.",
+  marke_rueckwirkend_titel:"Backfilled",marke_rueckwirkend_text:"Logged an entry with a backdated date.",
+  marke_import_titel:"Import pro",marke_import_text:"Successfully imported a bank statement.",
   budgetsHeading:"Budgets",
   lebensmittelWoche:"Groceries per week",auswaertsWoche:"Eating out per week",
   shoppingMonat:"Shopping per month",freizeitMonat:"Leisure per month",
@@ -298,7 +331,35 @@ function wochenListe(d){
   return wochen;
 }
 
-let S={eintraege:[],budget:{...STD}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
+function berechneErfolge(){
+  const heute=new Date();
+  let serieWochen=0,monatGruen=false;
+  if(S.eintraege.length){
+    const ersteTs=Math.min(...S.eintraege.map(e=>e.ts));
+    const startWoche=wstart(new Date(ersteTs));
+    const heuteStart=new Date(heute.getFullYear(),heute.getMonth(),heute.getDate());
+    const alleWochen=wochenListe(heute).filter(w=>w.start>=startWoche&&w.ende<heuteStart);
+    for(let i=alleWochen.length-1;i>=0;i--){
+      const w=alleWochen[i],von=w.start.getTime(),bis=w.ende.getTime()+86399999;
+      const posten=S.eintraege.filter(e=>e.ts>=von&&e.ts<=bis);
+      const leb=posten.filter(e=>e.kat==="lebensmittel").reduce((s,e)=>s+e.betrag,0);
+      const aus=posten.filter(e=>e.kat==="auswaerts").reduce((s,e)=>s+e.betrag,0);
+      if(leb<=S.budget.w_lebensmittel&&aus<=S.budget.w_auswaerts)serieWochen++;
+      else break;
+    }
+    const monate=[...new Set(S.eintraege.map(e=>mk(new Date(e.ts))))].filter(m=>m<mk(heute));
+    monatGruen=monate.some(m=>{
+      const posten=S.eintraege.filter(e=>mk(new Date(e.ts))===m);
+      const sum=k=>posten.filter(e=>e.kat===k).reduce((s,e)=>s+e.betrag,0);
+      return sum("lebensmittel")<=S.budget.w_lebensmittel*4.35&&sum("auswaerts")<=S.budget.w_auswaerts*4.35&&
+        sum("shopping")<=S.budget.m_shopping&&sum("freizeit")<=S.budget.m_freizeit;
+    });
+  }
+  return{erster:S.eintraege.length>=1,serie2:serieWochen>=2,serie4:serieWochen>=4,
+    monatgruen:monatGruen,rueckwirkend:!!S.marken.rueckwirkend,import:!!S.marken.import};
+}
+
+let S={eintraege:[],budget:{...STD},marken:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
 let importText="",importRows=null;
 let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
@@ -317,7 +378,7 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
@@ -414,11 +475,13 @@ function rechne(){
 function topfHTML(t){
   const rest=t.budget-t.ist,soll=t.budget?(t.budget/t.von)*t.pos:0,ueber=rest<0,vor=soll-t.ist;
   const sollPos=Math.min(100,t.budget?soll/t.budget*100:0),sollLabPos=Math.min(94,Math.max(6,sollPos));
+  const pct=t.budget?t.ist/t.budget*100:0,warn=!ueber&&pct>=80;
+  const farbe=ueber?"var(--rot)":warn?"var(--warn)":"var(--gruen)";
   return`<div class="topf"><div class="topf-kopf"><span class="topf-lab">${t.label}</span>
    <span class="topf-zyk">${t.zykZeile}</span></div>
    <div class="topf-zahl">${f0(Math.abs(rest))}<span class="topf-eur">€ ${ueber?L("ueber"):L("frei")}</span></div>
    <div class="spur"><span class="soll-lab" style="left:${sollLabPos}%">${L("sollLabel")}</span>
-   <div class="fuell" style="width:${Math.min(100,t.budget?t.ist/t.budget*100:0)}%;background:${ueber?"var(--rot)":"var(--gruen)"}"></div>
+   <div class="fuell" style="width:${Math.min(100,pct)}%;background:${farbe}"></div>
    <div class="soll" style="left:${sollPos}%"></div></div>
    <div class="topf-fuss">${L("topfFuss")(t.ist,t.budget)} · ${vor>=0?L("vorsprung")(vor):L("zuSchnell")(-vor)}</div></div>`;
 }
@@ -451,6 +514,10 @@ function faellig(z){
   return`<div class="karte dunkel"><div class="topf-lab">${L("festeAbgaenge")}</div>
    <div class="gross">${f0(sm)} €</div>
    <div class="topf-fuss">${L("ohneQuartal")}</div></div>
+  <div class="karte"><h2>${L("deineAbos")}</h2>${FIX.map(f=>`
+   <div class="fz"><div class="fi"><div class="fn">${esc(fl(f.key))}${f.bis?`<span class="flab warn">${L("endetAm")(String(new Date(f.bis).getDate()).padStart(2,"0")+"."+String(new Date(f.bis).getMonth()+1).padStart(2,"0")+".")}</span>`:""}</div>
+   <div class="finfo">${f.typ==="monat"?L("monatlich"):L("quartalsweise")}</div></div>
+   <div class="fw">${f0(f.betrag)} €</div></div>`).join("")}</div>
   <div class="karte"><h2>${L("alsNaechstesFaellig")}</h2>${z.faellig.slice(0,14).map(f=>{
     const t=tdiff(f.wann,z.h0);
     return`<div class="fz"><div class="fd"><div class="ft">${String(f.wann.getDate()).padStart(2,"0")}</div>
@@ -461,6 +528,18 @@ function faellig(z){
     <div class="fw">${f0(f.betrag)} €</div></div>`}).join("")}</div>`;
 }
 
+function erfolge(){
+  const zustand=berechneErfolge();
+  return`<div class="karte"><h2>${L("deineErfolge")}</h2>
+   <p class="text">${L("erfolgeText")}</p>
+   <div class="medaillen">${MARKEN.map(m=>{
+     const frei=zustand[m.id];
+     return`<div class="medaille${frei?" frei":""}" title="${esc(L("marke_"+m.id+"_text"))}">
+      <div class="medaille-icon">${m.icon}</div>
+      <div class="medaille-lab">${L("marke_"+m.id+"_titel")}</div></div>`;
+   }).join("")}</div></div>`;
+}
+
 function referenz(z){
   const heute=new Date();
   const rb=wochenListe(heute).map((w,i)=>{
@@ -469,12 +548,22 @@ function referenz(z){
     const summe=posten.reduce((s,e)=>s+e.betrag,0);
     return{...w,nr:i+1,summe,anzahl:posten.length,aktuell:heute>=w.start&&heute<=w.ende};
   });
-  return`<div class="karte"><h2>${L("deinSchnitt")}</h2>
+  const vormonat=new Date(heute.getFullYear(),heute.getMonth()-1,1),vmKey=mk(vormonat);
+  const vmSumme=id=>S.eintraege.filter(e=>e.kat===id&&mk(new Date(e.ts))===vmKey).reduce((s,e)=>s+e.betrag,0);
+  return`${erfolge()}
+  <div class="karte"><h2>${L("deinSchnitt")}</h2>
    <p class="text">${L("schnittText")}</p>
    ${KAT.filter(k=>k.ref>0).map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe;
    return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${kl(k.id)}</span>
    <span class="wert">${f0(ist)} / ${f0(k.ref)} €</span></div>
    <div class="spur"><div class="fuell" style="width:${Math.min(100,ist/k.ref*100)}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>
+  <div class="karte"><h2>${L("monatsvergleich")}</h2>
+   <p class="text">${L("monatsvergleichText")}</p>
+   ${KAT.filter(k=>k.ref>0).map(k=>{
+     const jetzt=z.proKat.find(x=>x.id===k.id).summe,vorher=vmSumme(k.id),delta=jetzt-vorher;
+     const pfeil=delta>0?"▲":delta<0?"▼":"–",farbe=delta>0?"var(--rot)":delta<0?"var(--gruen)":"var(--grau)";
+     return`<div class="reihe"><span>${kl(k.id)}</span><span class="wert">${f0(jetzt)} € <span style="color:${farbe};font-weight:600">${pfeil} ${f0(Math.abs(delta))} €</span></span></div>`;
+   }).join("")}</div>
   <div class="karte"><h2>${L("wochenrueckblick")(MONL[lang][heute.getMonth()])}</h2>
    <p class="text">${L("rueckblickText")}</p>
    ${rb.map(w=>`<div class="reihe${w.aktuell?" stark":""}"><span>${L("wocheLabel")} ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · "+L("aktuell"):""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}</span></div>`).join("")}</div>`;
@@ -577,6 +666,7 @@ function binden(){
   if(bu)bu.onclick=()=>{
     const b=parseFloat(wert.replace(",","."))||0;if(b<=0)return;
     const[jj,mm,tt]=datum.split("-").map(Number),ts=new Date(jj,mm-1,tt,12,0,0).getTime();
+    if(datum!==isoDatum(new Date()))S.marken.rueckwirkend=true;
     S.eintraege.push({id:Date.now().toString(36),ts,betrag:b,kat,notiz:notiz.trim()});
     S.eintraege.sort((x,y)=>y.ts-x.ts);
     sichern();wert="";notiz="";datum=isoDatum(new Date());render();toast(L("tGebucht"))};
@@ -600,7 +690,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})}};sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{}};sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -616,6 +706,7 @@ function bindenImport(){
   const ok=document.getElementById("impBestaetigen");
   if(ok)ok.onclick=()=>{
     const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),betrag:r.betrag,kat:r.kat,notiz:r.notiz}));
+    if(neue.length)S.marken.import=true;
     S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
     sichern();const n=neue.length;importRows=null;importText="";tab="referenz";render();toast(L("tImportiert")(n))};
   const ab=document.getElementById("impAbbrechen");
