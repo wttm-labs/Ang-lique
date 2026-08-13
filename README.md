@@ -12,6 +12,15 @@ Alle Daten liegen im Speicher des Browsers auf dem Gerät.
 4. Keine Einstellungen ändern — Framework "Other", kein Build Command, Output Directory leer.
 5. Deploy. Nach etwa dreißig Sekunden gibt es eine Adresse wie `kontur-xyz.vercel.app`.
 
+## Die richtige Adresse
+
+Live unter **https://ang-lique.vercel.app** — das ist die Produktions-Domain, offen ohne Login.
+
+Vercel legt für den `main`-Branch zusätzlich eine zweite Adresse an
+(`ang-lique-git-main-....vercel.app`). Die liegt standardmäßig hinter einem
+Vercel-Login und ist nicht die, die man teilen oder aufs Handy legen sollte —
+immer die kurze Domain oben verwenden.
+
 ## Aufs Handy legen
 
 **iPhone:** Adresse in Safari öffnen (nicht Chrome), Teilen-Symbol, "Zum Home-Bildschirm".
