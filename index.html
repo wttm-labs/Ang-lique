@@ -12,7 +12,9 @@
 <title>Angélique</title>
 <style>
 :root{--bg:#EDEFF3;--karte:#FFF;--tinte:#111418;--grau:#6B7280;--linie:#E3E6EB;
-  --gruen:#0E9F6E;--rot:#E0473E;--dunkel:#151A20}
+  --gruen:#0E9F6E;--rot:#E0473E;--dunkel:#151A20;--auf-tinte:#fff;--navbg:rgba(255,255,255,.95)}
+:root[data-theme="dark"]{--bg:#12151A;--karte:#1B212A;--tinte:#EDEFF3;--grau:#8A93A3;
+  --linie:rgba(255,255,255,.09);--dunkel:#232B36;--auf-tinte:#12151A;--navbg:rgba(18,21,26,.9)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--tinte);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
@@ -31,7 +33,7 @@ h2{font-size:15px;font-weight:650;margin:0 0 12px}
 .wert{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px;white-space:nowrap}
 .bald{background:#FFF8E6;border:1px solid #F0DFAE;border-radius:14px;padding:14px 16px;margin-bottom:12px}
 .bald-lab{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8A6D1F;margin-bottom:9px;font-weight:700}
-.bald-z{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0}
+.bald-z{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0;color:#4A3B12}
 .bald-t{color:#8A6D1F;font-weight:400;font-size:11.5px;margin-left:6px}
 .hero{background:var(--dunkel);border-radius:18px;padding:18px;margin-bottom:12px;color:#fff}
 .topf{padding:6px 0}
@@ -45,11 +47,14 @@ h2{font-size:15px;font-weight:650;margin:0 0 12px}
 .topf-eur{font-size:13px;font-weight:500;letter-spacing:0;opacity:.55;margin-left:8px}
 .topf-fuss{font-size:11.5px;opacity:.55;margin-top:8px;font-variant-numeric:tabular-nums}
 .karte .topf-lab,.karte .topf-fuss,.karte .topf-zyk{color:var(--grau);opacity:1}
-.spur{position:relative;height:7px;background:var(--linie);border-radius:4px}
+.spur{position:relative;height:7px;background:var(--linie);border-radius:4px;margin-top:16px}
 .hero .spur{background:rgba(255,255,255,.16)}
 .fuell{height:100%;border-radius:4px;transition:width .3s}
 .soll{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--grau)}
 .hero .soll{background:rgba(255,255,255,.6)}
+.soll-lab{position:absolute;bottom:100%;transform:translateX(-50%);font-size:9px;color:var(--grau);
+  white-space:nowrap;margin-bottom:4px;letter-spacing:.02em;pointer-events:none}
+.hero .soll-lab{color:rgba(255,255,255,.55)}
 .eingabe{display:flex;align-items:baseline;justify-content:flex-end;gap:8px;
   border-bottom:2px solid var(--tinte);padding-bottom:12px;margin-bottom:16px}
 .eingabe-z{font-size:50px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.045em;line-height:1}
@@ -57,7 +62,7 @@ h2{font-size:15px;font-weight:650;margin:0 0 12px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 .chip{border:1px solid var(--linie);background:var(--bg);border-radius:20px;padding:7px 13px;
   font-size:12.5px;color:var(--grau);cursor:pointer;font-family:inherit;font-weight:500}
-.chip.on{background:var(--tinte);color:#fff;border-color:var(--tinte)}
+.chip.on{background:var(--tinte);color:var(--auf-tinte);border-color:var(--tinte)}
 .feld{width:100%;border:1px solid var(--linie);border-radius:11px;background:var(--bg);
   padding:12px;font-size:16px;font-family:inherit;color:var(--tinte);margin-bottom:16px}
 .feld:focus{outline:none;border-color:var(--tinte)}
@@ -65,10 +70,10 @@ h2{font-size:15px;font-weight:650;margin:0 0 12px}
 .taste{background:var(--bg);border:1px solid var(--linie);border-radius:13px;padding:19px 0;
   font-size:23px;font-weight:500;font-variant-numeric:tabular-nums;cursor:pointer;
   color:var(--tinte);font-family:inherit;transition:transform .08s,background .12s}
-.taste:active{background:var(--tinte);color:#fff;transform:scale(.97)}
+.taste:active{background:var(--tinte);color:var(--auf-tinte);transform:scale(.97)}
 .vorschau{font-size:12.5px;color:var(--grau);text-align:right;margin-bottom:12px;font-weight:500}
 .vorschau.rot{color:var(--rot)}
-.primaer{width:100%;background:var(--tinte);color:#fff;border:none;border-radius:13px;
+.primaer{width:100%;background:var(--tinte);color:var(--auf-tinte);border:none;border-radius:13px;
   padding:17px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
 .primaer:disabled{background:var(--linie);color:var(--grau)}
 .sekundaer{width:100%;background:none;border:1.5px solid var(--tinte);border-radius:12px;
@@ -97,7 +102,7 @@ ul.liste{list-style:none;padding:0;margin:0}
 .ft{font-size:17px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
 .fm{font-size:10px;color:var(--grau);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
 .fi{flex:1;min-width:0}.fn{font-size:14px;font-weight:600}
-.flab{font-size:9.5px;background:var(--tinte);color:#fff;border-radius:4px;padding:2px 5px;
+.flab{font-size:9.5px;background:var(--tinte);color:var(--auf-tinte);border-radius:4px;padding:2px 5px;
   margin-left:7px;letter-spacing:.05em;text-transform:uppercase}
 .finfo{font-size:11.5px;color:var(--grau);margin-top:2px;line-height:1.45}
 .fw{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;white-space:nowrap}
@@ -108,14 +113,14 @@ ul.liste{list-style:none;padding:0;margin:0}
   font-weight:650;color:var(--tinte);font-family:inherit;flex:none}
 .gross{font-size:44px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;margin:6px 0}
 textarea.feld{min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(255,255,255,.95);
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--navbg);
   backdrop-filter:blur(12px);border-top:1px solid var(--linie);max-width:640px;margin:0 auto;
   padding-bottom:env(safe-area-inset-bottom);z-index:10}
 nav button{flex:1;background:none;border:none;padding:15px 4px 17px;font-size:12px;
   color:var(--grau);cursor:pointer;font-family:inherit;font-weight:550}
 nav button.on{color:var(--tinte);box-shadow:inset 0 2px 0 var(--tinte)}
 .ok{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;background:var(--tinte);
-  color:#fff;padding:11px 20px;border-radius:22px;font-size:14px;font-weight:600;
+  color:var(--auf-tinte);padding:11px 20px;border-radius:22px;font-size:14px;font-weight:600;
   opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
 .ok.an{opacity:1}
 </style>
@@ -127,26 +132,38 @@ nav button.on{color:var(--tinte);box-shadow:inset 0 2px 0 var(--tinte)}
 <script>
 /* ═══ Stammdaten ═══════════════════════════════════════════ */
 const KAT=[
- {id:"lebensmittel",label:"Lebensmittel",topf:"w_lebensmittel",ref:120},
- {id:"auswaerts",label:"Auswärts & Kaffee",topf:"w_auswaerts",ref:80},
- {id:"shopping",label:"Shopping",topf:"m_shopping",ref:150},
- {id:"freizeit",label:"Freizeit & Events",topf:"m_freizeit",ref:60},
- {id:"geschenke",label:"Geschenke & Anlässe",topf:null,ref:0},
- {id:"haushalt",label:"Drogerie & Haushalt",topf:null,ref:40},
- {id:"transport",label:"Transport",topf:null,ref:50},
- {id:"gesundheit",label:"Gesundheit",topf:null,ref:30},
- {id:"sonstiges",label:"Sonstiges",topf:null,ref:0}];
+ {id:"lebensmittel",topf:"w_lebensmittel",ref:120},
+ {id:"auswaerts",topf:"w_auswaerts",ref:80},
+ {id:"shopping",topf:"m_shopping",ref:150},
+ {id:"freizeit",topf:"m_freizeit",ref:60},
+ {id:"geschenke",topf:null,ref:0},
+ {id:"haushalt",topf:null,ref:40},
+ {id:"transport",topf:null,ref:50},
+ {id:"gesundheit",topf:null,ref:30},
+ {id:"sonstiges",topf:null,ref:0}];
+
+const KATLABEL={
+ de:{lebensmittel:"Lebensmittel",auswaerts:"Auswärts & Kaffee",shopping:"Shopping",freizeit:"Freizeit & Events",
+  geschenke:"Geschenke & Anlässe",haushalt:"Drogerie & Haushalt",transport:"Transport",gesundheit:"Gesundheit",sonstiges:"Sonstiges"},
+ en:{lebensmittel:"Groceries",auswaerts:"Eating out & coffee",shopping:"Shopping",freizeit:"Leisure & events",
+  geschenke:"Gifts & occasions",haushalt:"Drugstore & household",transport:"Transport",gesundheit:"Health",sonstiges:"Other"}};
 
 /* Beispielwerte — bitte über die App durch eigene Fixkosten ersetzen */
 const FIX=[
- {name:"Miete",betrag:900,typ:"monat",tag:1},
- {name:"Handy & Internet",betrag:40,typ:"monat",tag:2},
- {name:"Strom",betrag:45,typ:"monat",tag:1},
- {name:"Nahverkehrsticket",betrag:60,typ:"monat",tag:1},
- {name:"Versicherung",betrag:25,typ:"monat",tag:2},
- {name:"Fitnessstudio",betrag:40,typ:"monat",tag:1},
- {name:"Streaming-Abos",betrag:15,typ:"monat",tag:2},
- {name:"Rundfunkbeitrag",betrag:55,typ:"quartal",monate:[2,5,8,11],tag:15}];
+ {key:"miete",betrag:900,typ:"monat",tag:1},
+ {key:"handy",betrag:40,typ:"monat",tag:2},
+ {key:"strom",betrag:45,typ:"monat",tag:1},
+ {key:"ticket",betrag:60,typ:"monat",tag:1},
+ {key:"versicherung",betrag:25,typ:"monat",tag:2},
+ {key:"fitness",betrag:40,typ:"monat",tag:1},
+ {key:"streaming",betrag:15,typ:"monat",tag:2},
+ {key:"rundfunk",betrag:55,typ:"quartal",monate:[2,5,8,11],tag:15}];
+
+const FIXLABEL={
+ de:{miete:"Miete",handy:"Handy & Internet",strom:"Strom",ticket:"Nahverkehrsticket",versicherung:"Versicherung",
+  fitness:"Fitnessstudio",streaming:"Streaming-Abos",rundfunk:"Rundfunkbeitrag"},
+ en:{miete:"Rent",handy:"Phone & internet",strom:"Electricity",ticket:"Transit pass",versicherung:"Insurance",
+  fitness:"Gym",streaming:"Streaming subscriptions",rundfunk:"Broadcasting fee"}};
 
 const EINMAL=[];
 
@@ -154,11 +171,108 @@ const STD={w_lebensmittel:125,w_auswaerts:75,m_shopping:200,m_freizeit:60};
 
 const SEED=[];
 
+const T={
+ de:{
+  navErfassen:"Erfassen",navFaellig:"Fällig",navReferenz:"Referenz",navBudgets:"Budgets",
+  baldFaellig:"Diese Woche fällig",heute:"heute",
+  badgeWoche:(w,W)=>`Woche ${w} von ${W}`,zykWoche:(w,W)=>`Woche ${w} von ${W}`,
+  datumFormat:(t,m)=>`${t}. ${m}`,
+  zykMonat:(m,t,T)=>`${m} · Tag ${t}/${T}`,
+  ueber:"drüber",frei:"frei",
+  topfFuss:(i,b)=>`${f0(i)} von ${f0(b)} €`,vorsprung:v=>`${f0(v)} € Vorsprung`,zuSchnell:v=>`${f0(v)} € zu schnell`,
+  monatstoepfe:"Monatstöpfe",
+  geschenkeHinweis:"Ohne Budget-Deckel — für Ausgaben, die anfallen und sich nicht vermeiden lassen (z. B. Geschenke, Einladungen). Zählt nur in die Monatssumme, nicht gegen einen Topf.",
+  notizPlaceholder:"Notiz, z. B. Espressolab",
+  danachUeber:v=>`Danach ${f0(v)} € über dem Budget`,danachBleiben:v=>`Danach bleiben ${f0(v)} €`,
+  buchen:"Buchen",zuletzt:"Zuletzt",ausgabe:"Ausgabe",
+  festeAbgaenge:"Feste Abgänge pro Monat",ohneQuartal:"ohne Quartalszahlungen · aus den Kontoauszügen ermittelt",
+  alsNaechstesFaellig:"Als Nächstes fällig",einmalig:"einmalig",
+  inTagen:n=>`in ${n} Tagen`,inT:n=>`in ${n} T`,
+  deinSchnitt:"Dein Schnitt",
+  schnittText:"Referenzwerte aus deinen eigenen Kontoauszügen, daneben was du diesen Monat gebucht hast. Trage deine Werte oben in den Konstanten (KAT) ein.",
+  wochenrueckblick:m=>`Wochenrückblick ${m}`,
+  rueckblickText:"Was pro Woche gebucht wurde — auch nachträglich erfasste Buchungen zählen hier in die richtige Woche.",
+  aktuell:"aktuell",wocheLabel:"Woche",
+  budgetsHeading:"Budgets",
+  lebensmittelWoche:"Lebensmittel pro Woche",auswaertsWoche:"Auswärts pro Woche",
+  shoppingMonat:"Shopping pro Monat",freizeitMonat:"Freizeit pro Monat",
+  taeglich:"fällt täglich an",inSchueben:"kommt in Schüben, nicht täglich",
+  budgetErklaerung:"Lebensmittel und Auswärts laufen wöchentlich, weil sie täglich anfallen — ein Monatsbudget verleitet dazu, einzelne Ausreißer wegzurationalisieren, die Woche gibt schnellere Rückmeldung. Shopping und Freizeit kommen eher in Schüben, deshalb reicht dort der Monat als Zyklus.<br><br>Geschenke, Einladungen & Anlässe haben bewusst keinen Topf: Das sind Ausgaben, die anfallen und sich nicht vermeiden lassen — die tauchen nur in der Monatssumme und im Referenz-Tab auf, ohne ein Wochen- oder Monatsbudget zu sprengen.",
+  umgerechnet:"Umgerechnet",lebensmittelMonat:"Lebensmittel im Monat",auswaertsMonat:"Auswärts im Monat",
+  alleToepfe:"Alle vier Töpfe im Monat",
+  darstellung:"Darstellung",hell:"Hell",dunkel:"Dunkel",sprache:"Sprache",
+  csvHeading:"Kontoauszug importieren",
+  csvText:"CSV-Export deiner Bank hier einfügen — für rückwirkendes Erfassen, z. B. den ganzen August auf einmal. Datum, Betrag und Verwendungszweck werden erkannt, Ausgaben automatisch kategorisiert. Vor dem Import kannst du jede Zeile noch prüfen und die Kategorie ändern.",
+  csvPlaceholder:"CSV-Text hier einfügen",einlesen:"Einlesen",
+  datenSichern:"Daten sichern",
+  datenSichernText:"Alles liegt nur auf diesem Gerät. Exportiere regelmäßig, dann kannst du die Daten weitergeben oder wiederherstellen.",
+  alsDateiExportieren:"Als Datei exportieren",inZwischenablage:"In die Zwischenablage",
+  wiederherstellenPlaceholder:"Zum Wiederherstellen: exportierten Text hier einfügen",wiederherstellen:"Wiederherstellen",
+  importPruefen:"Import prüfen",
+  importText:n=>`${n} Buchungen erkannt und automatisch kategorisiert. Kategorie bei Bedarf ändern, Häkchen raus für Zeilen, die nicht rein sollen (z. B. Mieteingang, Umbuchung zwischen eigenen Konten).`,
+  importBestaetigen:n=>`${n} Buchungen importieren`,abbrechen:"Abbrechen",
+  sollLabel:"Soll heute",
+  tGebucht:"Gebucht",tExportiert:"Exportiert",tKopiert:"Kopiert",tGingNicht:"Ging nicht",
+  tWiederhergestellt:"Wiederhergestellt",tTextNichtLesbar:"Text nicht lesbar",tSpeichernFehlgeschlagen:"Speichern fehlgeschlagen",
+  tKeineZeilen:"Keine Zeilen gefunden",tSpalteNichtErkannt:"Datum- oder Betrag-Spalte nicht erkannt",
+  tKeineAusgaben:"Keine Ausgaben gefunden (nur Eingänge?)",tImportiert:n=>`${n} importiert`
+ },
+ en:{
+  navErfassen:"Log",navFaellig:"Due",navReferenz:"Insights",navBudgets:"Budgets",
+  baldFaellig:"Due this week",heute:"today",
+  badgeWoche:(w,W)=>`Week ${w} of ${W}`,zykWoche:(w,W)=>`Week ${w} of ${W}`,
+  datumFormat:(t,m)=>`${m} ${t}`,
+  zykMonat:(m,t,T)=>`${m} · Day ${t}/${T}`,
+  ueber:"over",frei:"left",
+  topfFuss:(i,b)=>`${f0(i)} of ${f0(b)} €`,vorsprung:v=>`${f0(v)} € ahead`,zuSchnell:v=>`${f0(v)} € behind pace`,
+  monatstoepfe:"Monthly pots",
+  geschenkeHinweis:"No budget cap — for expenses that come up and can't be avoided (e.g. gifts, hosting others). Counts only toward the monthly total, not against a pot.",
+  notizPlaceholder:"Note, e.g. coffee shop",
+  danachUeber:v=>`${f0(v)} € over budget after this`,danachBleiben:v=>`${f0(v)} € left after this`,
+  buchen:"Add",zuletzt:"Recent",ausgabe:"Expense",
+  festeAbgaenge:"Fixed costs per month",ohneQuartal:"excluding quarterly payments · based on your statements",
+  alsNaechstesFaellig:"Coming up",einmalig:"one-time",
+  inTagen:n=>`in ${n} days`,inT:n=>`in ${n}d`,
+  deinSchnitt:"Your average",
+  schnittText:"Reference values from your own bank statements, next to what you've logged this month. Edit your numbers in the KAT constants above.",
+  wochenrueckblick:m=>`Weekly review — ${m}`,
+  rueckblickText:"What got logged per week — entries added after the fact still land in the right week.",
+  aktuell:"current",wocheLabel:"Week",
+  budgetsHeading:"Budgets",
+  lebensmittelWoche:"Groceries per week",auswaertsWoche:"Eating out per week",
+  shoppingMonat:"Shopping per month",freizeitMonat:"Leisure per month",
+  taeglich:"happens daily",inSchueben:"comes in bursts, not daily",
+  budgetErklaerung:"Groceries and eating out run weekly because they happen daily — a monthly budget makes it easy to rationalize away single outliers, while a week gives faster feedback. Shopping and leisure tend to come in bursts, so a monthly cycle is enough there.<br><br>Gifts, hosting & occasions deliberately have no pot: these are expenses that come up and can't be avoided — they only show up in the monthly total and the Insights tab, without blowing a weekly or monthly budget.",
+  umgerechnet:"Converted",lebensmittelMonat:"Groceries per month",auswaertsMonat:"Eating out per month",
+  alleToepfe:"All four pots per month",
+  darstellung:"Appearance",hell:"Light",dunkel:"Dark",sprache:"Language",
+  csvHeading:"Import bank statement",
+  csvText:"Paste your bank's CSV export here — to backfill retroactively, e.g. all of August at once. Date, amount and description get detected, expenses get auto-categorized. Review and adjust every row before importing.",
+  csvPlaceholder:"Paste CSV text here",einlesen:"Parse",
+  datenSichern:"Back up data",
+  datenSichernText:"Everything stays on this device only. Export regularly so you can transfer or restore your data.",
+  alsDateiExportieren:"Export as file",inZwischenablage:"Copy to clipboard",
+  wiederherstellenPlaceholder:"To restore: paste exported text here",wiederherstellen:"Restore",
+  importPruefen:"Review import",
+  importText:n=>`${n} transactions detected and auto-categorized. Change the category if needed, uncheck rows that shouldn't be included (e.g. rent income, transfers between your own accounts).`,
+  importBestaetigen:n=>`Import ${n} transactions`,abbrechen:"Cancel",
+  sollLabel:"Target today",
+  tGebucht:"Logged",tExportiert:"Exported",tKopiert:"Copied",tGingNicht:"Didn't work",
+  tWiederhergestellt:"Restored",tTextNichtLesbar:"Couldn't read that text",tSpeichernFehlgeschlagen:"Save failed",
+  tKeineZeilen:"No rows found",tSpalteNichtErkannt:"Couldn't detect date or amount column",
+  tKeineAusgaben:"No expenses found (income only?)",tImportiert:n=>`${n} imported`
+ }};
+
+const MONL={
+ de:["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
+ en:["January","February","March","April","May","June","July","August","September","October","November","December"]};
+const WOT={
+ de:["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"],
+ en:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]};
+
 /* ═══ Hilfen ═══════════════════════════════════════════════ */
 const f2=n=>new Intl.NumberFormat("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const f0=n=>new Intl.NumberFormat("de-DE",{maximumFractionDigits:0}).format(n||0);
-const MONL=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-const WOT=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const tim=d=>new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
 const mk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
 const wstart=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
@@ -180,6 +294,18 @@ function wochenListe(d){
 
 let S={eintraege:[],budget:{...STD}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
 let importText="",importRows=null;
+let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+let lang=localStorage.getItem("kontur:lang")||"de";
+
+const L=k=>T[lang][k];
+const kl=id=>KATLABEL[lang][id];
+const fl=key=>FIXLABEL[lang][key];
+
+function themeAnwenden(){
+  document.documentElement.dataset.theme=theme;
+  const mc=document.querySelector('meta[name="theme-color"]');
+  if(mc)mc.content=theme==="dark"?"#12151A":"#EDEFF3";
+}
 
 function laden(){
   try{
@@ -193,7 +319,7 @@ function laden(){
   }).sort((a,b)=>b.ts-a.ts);
   sichern();
 }
-function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}catch(e){toast("Speichern fehlgeschlagen")}}
+function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}catch(e){toast(L("tSpeichernFehlgeschlagen"))}}
 function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("an");setTimeout(()=>e.classList.remove("an"),1400)}
 
 const AUTOKAT=[
@@ -239,14 +365,14 @@ function parseDatumDE(s){
 }
 function csvEinlesen(){
   const{header,rows}=parseCSV(importText);
-  if(!rows.length){toast("Keine Zeilen gefunden");return}
+  if(!rows.length){toast(L("tKeineZeilen"));return}
   const iDatum=findSpalte(header,["buchungstag","valuta","datum"]);
   const iBetrag=findSpalte(header,["betrag","umsatz"]);
   const iText=findSpalte(header,["verwendungszweck","buchungstext","empfänger","empfaenger","begünstigter","zahlungsempf","name"]);
-  if(iDatum<0||iBetrag<0){toast("Datum- oder Betrag-Spalte nicht erkannt");return}
+  if(iDatum<0||iBetrag<0){toast(L("tSpalteNichtErkannt"));return}
   const geparst=rows.map(r=>({datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),text:iText>=0?r[iText]:""}))
     .filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag<0);
-  if(!geparst.length){toast("Keine Ausgaben gefunden (nur Eingänge?)");return}
+  if(!geparst.length){toast(L("tKeineAusgaben"));return}
   importRows=geparst.map((r,i)=>({id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:(r.text||"").slice(0,60),kat:autoKategorie(r.text),drin:true}));
   render();
 }
@@ -266,10 +392,10 @@ function rechne(){
   const tag=now.getDate(),tage=tim(now),wtag=((now.getDay()+6)%7)+1;
   const wom=wocheDesMonats(now),womT=wochenImMonat(now);
   const toepfe=[
-   {id:"w_lebensmittel",label:"Lebensmittel",zykZeile:`Woche ${wom} von ${womT}`,ist:s(inW,"lebensmittel"),budget:S.budget.w_lebensmittel,pos:wtag,von:7},
-   {id:"w_auswaerts",label:"Auswärts & Kaffee",zykZeile:`Woche ${wom} von ${womT}`,ist:s(inW,"auswaerts"),budget:S.budget.w_auswaerts,pos:wtag,von:7},
-   {id:"m_shopping",label:"Shopping",zykZeile:`${MONL[now.getMonth()]} · Tag ${tag}/${tage}`,ist:s(inM,"shopping"),budget:S.budget.m_shopping,pos:tag,von:tage},
-   {id:"m_freizeit",label:"Freizeit & Events",zykZeile:`${MONL[now.getMonth()]} · Tag ${tag}/${tage}`,ist:s(inM,"freizeit"),budget:S.budget.m_freizeit,pos:tag,von:tage}];
+   {id:"w_lebensmittel",label:kl("lebensmittel"),zykZeile:L("zykWoche")(wom,womT),ist:s(inW,"lebensmittel"),budget:S.budget.w_lebensmittel,pos:wtag,von:7},
+   {id:"w_auswaerts",label:kl("auswaerts"),zykZeile:L("zykWoche")(wom,womT),ist:s(inW,"auswaerts"),budget:S.budget.w_auswaerts,pos:wtag,von:7},
+   {id:"m_shopping",label:kl("shopping"),zykZeile:L("zykMonat")(MONL[lang][now.getMonth()],tag,tage),ist:s(inM,"shopping"),budget:S.budget.m_shopping,pos:tag,von:tage},
+   {id:"m_freizeit",label:kl("freizeit"),zykZeile:L("zykMonat")(MONL[lang][now.getMonth()],tag,tage),ist:s(inM,"freizeit"),budget:S.budget.m_freizeit,pos:tag,von:tage}];
   const h0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const faellig=[...FIX.map(f=>({...f,wann:naechste(f,now)})).filter(f=>f.wann),
     ...EINMAL.map(e=>({...e,wann:new Date(e.datum),einmalig:1})).filter(e=>e.wann>=h0)].sort((a,b)=>a.wann-b.wann);
@@ -280,12 +406,14 @@ function rechne(){
 /* ═══ Bausteine ════════════════════════════════════════════ */
 function topfHTML(t){
   const rest=t.budget-t.ist,soll=t.budget?(t.budget/t.von)*t.pos:0,ueber=rest<0,vor=soll-t.ist;
+  const sollPos=Math.min(100,t.budget?soll/t.budget*100:0),sollLabPos=Math.min(94,Math.max(6,sollPos));
   return`<div class="topf"><div class="topf-kopf"><span class="topf-lab">${t.label}</span>
    <span class="topf-zyk">${t.zykZeile}</span></div>
-   <div class="topf-zahl">${f0(Math.abs(rest))}<span class="topf-eur">€ ${ueber?"drüber":"frei"}</span></div>
-   <div class="spur"><div class="fuell" style="width:${Math.min(100,t.budget?t.ist/t.budget*100:0)}%;background:${ueber?"var(--rot)":"var(--gruen)"}"></div>
-   <div class="soll" style="left:${Math.min(100,t.budget?soll/t.budget*100:0)}%"></div></div>
-   <div class="topf-fuss">${f0(t.ist)} von ${f0(t.budget)} € · ${vor>=0?f0(vor)+" € Vorsprung":f0(-vor)+" € zu schnell"}</div></div>`;
+   <div class="topf-zahl">${f0(Math.abs(rest))}<span class="topf-eur">€ ${ueber?L("ueber"):L("frei")}</span></div>
+   <div class="spur"><span class="soll-lab" style="left:${sollLabPos}%">${L("sollLabel")}</span>
+   <div class="fuell" style="width:${Math.min(100,t.budget?t.ist/t.budget*100:0)}%;background:${ueber?"var(--rot)":"var(--gruen)"}"></div>
+   <div class="soll" style="left:${sollPos}%"></div></div>
+   <div class="topf-fuss">${L("topfFuss")(t.ist,t.budget)} · ${vor>=0?L("vorsprung")(vor):L("zuSchnell")(-vor)}</div></div>`;
 }
 
 function erfassen(z){
@@ -295,34 +423,34 @@ function erfassen(z){
   return`<div class="hero">${z.toepfe.slice(0,2).map(topfHTML).join("")}</div>
   <div class="karte">
    <div class="eingabe"><span class="eingabe-z">${wert===""?"0":esc(wert)}</span><span class="eingabe-e">€</span></div>
-   <div class="chips">${KAT.map(k=>`<button class="chip${k.id===kat?" on":""}" data-kat="${k.id}">${k.label}</button>`).join("")}</div>
-   ${!a.topf?`<p class="finfo" style="margin:-6px 0 14px">Ohne Budget-Deckel — für Ausgaben, die anfallen und sich nicht vermeiden lassen (z. B. Geschenke, Einladungen). Zählt nur in die Monatssumme, nicht gegen einen Topf.</p>`:""}
-   <input class="feld" id="notiz" placeholder="Notiz, z. B. Espressolab" value="${esc(notiz)}">
+   <div class="chips">${KAT.map(k=>`<button class="chip${k.id===kat?" on":""}" data-kat="${k.id}">${kl(k.id)}</button>`).join("")}</div>
+   ${!a.topf?`<p class="finfo" style="margin:-6px 0 14px">${L("geschenkeHinweis")}</p>`:""}
+   <input class="feld" id="notiz" placeholder="${L("notizPlaceholder")}" value="${esc(notiz)}">
    <input class="feld" id="datum" type="date" value="${datum}" max="${isoDatum(new Date())}" style="margin-top:-6px">
    <div class="pad">${["1","2","3","4","5","6","7","8","9",",","0","back"].map(x=>`<button class="taste" data-t="${x}">${x==="back"?"⌫":x}</button>`).join("")}</div>
-   ${b>0&&danach!==null?`<div class="vorschau${danach<0?" rot":""}">${danach<0?"Danach "+f0(-danach)+" € über dem Budget":"Danach bleiben "+f0(danach)+" €"}</div>`:""}
-   <button class="primaer" id="buchen"${b<=0?" disabled":""}>Buchen</button>
+   ${b>0&&danach!==null?`<div class="vorschau${danach<0?" rot":""}">${danach<0?L("danachUeber")(-danach):L("danachBleiben")(danach)}</div>`:""}
+   <button class="primaer" id="buchen"${b<=0?" disabled":""}>${L("buchen")}</button>
   </div>
-  <div class="karte"><h2>Monatstöpfe</h2>${z.toepfe.slice(2).map(topfHTML).join("")}</div>
-  ${S.eintraege.length?`<div class="karte"><h2>Zuletzt</h2><ul class="liste">${S.eintraege.slice(0,15).map(e=>{
+  <div class="karte"><h2>${L("monatstoepfe")}</h2>${z.toepfe.slice(2).map(topfHTML).join("")}</div>
+  ${S.eintraege.length?`<div class="karte"><h2>${L("zuletzt")}</h2><ul class="liste">${S.eintraege.slice(0,15).map(e=>{
     const k=KAT.find(x=>x.id===e.kat),d=new Date(e.ts);
     return`<li class="zeile"><span class="punkt" data-k="${e.kat}"></span>
-    <span class="zeile-h">${esc(e.notiz||(k?k.label:"Ausgabe"))}<span class="zeile-n">${k?k.label:""} · ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.</span></span>
+    <span class="zeile-h">${esc(e.notiz||(k?kl(k.id):L("ausgabe")))}<span class="zeile-n">${k?kl(k.id):""} · ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.</span></span>
     <span class="wert">${f2(e.betrag)}</span><button class="weg" data-del="${e.id}">×</button></li>`}).join("")}</ul></div>`:""}`;
 }
 
 function faellig(z){
   const sm=FIX.filter(f=>f.typ==="monat").reduce((s,f)=>s+f.betrag,0);
-  return`<div class="karte dunkel"><div class="topf-lab">Feste Abgänge pro Monat</div>
+  return`<div class="karte dunkel"><div class="topf-lab">${L("festeAbgaenge")}</div>
    <div class="gross">${f0(sm)} €</div>
-   <div class="topf-fuss">ohne Quartalszahlungen · aus den Kontoauszügen ermittelt</div></div>
-  <div class="karte"><h2>Als Nächstes fällig</h2>${z.faellig.slice(0,14).map(f=>{
+   <div class="topf-fuss">${L("ohneQuartal")}</div></div>
+  <div class="karte"><h2>${L("alsNaechstesFaellig")}</h2>${z.faellig.slice(0,14).map(f=>{
     const t=tdiff(f.wann,z.h0);
     return`<div class="fz"><div class="fd"><div class="ft">${String(f.wann.getDate()).padStart(2,"0")}</div>
-    <div class="fm">${MONL[f.wann.getMonth()].slice(0,3)}</div></div>
-    <div class="fi"><div class="fn">${esc(f.name)}${f.einmalig?'<span class="flab">einmalig</span>':""}</div>
+    <div class="fm">${MONL[lang][f.wann.getMonth()].slice(0,3)}</div></div>
+    <div class="fi"><div class="fn">${esc(fl(f.key))}${f.einmalig?`<span class="flab">${L("einmalig")}</span>`:""}</div>
     ${f.info?`<div class="finfo">${esc(f.info)}</div>`:""}
-    <div class="finfo">${t===0?"heute":"in "+t+" Tagen"}</div></div>
+    <div class="finfo">${t===0?L("heute"):L("inTagen")(t)}</div></div>
     <div class="fw">${f0(f.betrag)} €</div></div>`}).join("")}</div>`;
 }
 
@@ -334,73 +462,82 @@ function referenz(z){
     const summe=posten.reduce((s,e)=>s+e.betrag,0);
     return{...w,nr:i+1,summe,anzahl:posten.length,aktuell:heute>=w.start&&heute<=w.ende};
   });
-  return`<div class="karte"><h2>Dein Schnitt</h2>
-   <p class="text">Referenzwerte aus deinen eigenen Kontoauszügen, daneben was du diesen Monat gebucht hast. Trage deine Werte oben in den Konstanten (KAT) ein.</p>
+  return`<div class="karte"><h2>${L("deinSchnitt")}</h2>
+   <p class="text">${L("schnittText")}</p>
    ${KAT.filter(k=>k.ref>0).map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe;
-   return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${k.label}</span>
+   return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${kl(k.id)}</span>
    <span class="wert">${f0(ist)} / ${f0(k.ref)} €</span></div>
    <div class="spur"><div class="fuell" style="width:${Math.min(100,ist/k.ref*100)}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>
-  <div class="karte"><h2>Wochenrückblick ${MONL[heute.getMonth()]}</h2>
-   <p class="text">Was pro Woche gebucht wurde — auch nachträglich erfasste Buchungen zählen hier in die richtige Woche.</p>
-   ${rb.map(w=>`<div class="reihe${w.aktuell?" stark":""}"><span>Woche ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · aktuell":""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}</span></div>`).join("")}</div>`;
+  <div class="karte"><h2>${L("wochenrueckblick")(MONL[lang][heute.getMonth()])}</h2>
+   <p class="text">${L("rueckblickText")}</p>
+   ${rb.map(w=>`<div class="reihe${w.aktuell?" stark":""}"><span>${L("wocheLabel")} ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · "+L("aktuell"):""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}</span></div>`).join("")}</div>`;
 }
 
 function budgets(){
-  const F=[["w_lebensmittel","Lebensmittel pro Woche","fällt täglich an"],
-   ["w_auswaerts","Auswärts pro Woche","fällt täglich an"],
-   ["m_shopping","Shopping pro Monat","kommt in Schüben, nicht täglich"],
-   ["m_freizeit","Freizeit pro Monat","kommt in Schüben, nicht täglich"]];
+  const F=[["w_lebensmittel",L("lebensmittelWoche"),L("taeglich")],
+   ["w_auswaerts",L("auswaertsWoche"),L("taeglich")],
+   ["m_shopping",L("shoppingMonat"),L("inSchueben")],
+   ["m_freizeit",L("freizeitMonat"),L("inSchueben")]];
   const b=S.budget;
-  return`<div class="karte"><h2>Budgets</h2>
+  return`<div class="karte"><h2>${L("darstellung")}</h2>
+   <div class="chips">
+    <button class="chip${theme==='light'?' on':''}" data-theme-set="light">${L("hell")}</button>
+    <button class="chip${theme==='dark'?' on':''}" data-theme-set="dark">${L("dunkel")}</button>
+   </div>
+   <div class="chips" style="margin-bottom:0">
+    <button class="chip${lang==='de'?' on':''}" data-lang-set="de">Deutsch</button>
+    <button class="chip${lang==='en'?' on':''}" data-lang-set="en">English</button>
+   </div></div>
+  <div class="karte"><h2>${L("budgetsHeading")}</h2>
    ${F.map(([id,l,h])=>`<div class="feldzeile"><div><label for="${id}">${l}</label><div class="finfo">${h}</div></div>
    <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`).join("")}
-   <p class="finfo" style="margin-top:14px;line-height:1.6">Lebensmittel und Auswärts laufen wöchentlich, weil sie täglich anfallen — ein Monatsbudget verleitet dazu, einzelne Ausreißer wegzurationalisieren, die Woche gibt schnellere Rückmeldung. Shopping und Freizeit kommen eher in Schüben, deshalb reicht dort der Monat als Zyklus.
-   <br><br>Geschenke, Einladungen & Anlässe haben bewusst keinen Topf: Das sind Ausgaben, die anfallen und sich nicht vermeiden lassen — die tauchen nur in der Monatssumme und im Referenz-Tab auf, ohne ein Wochen- oder Monatsbudget zu sprengen.</p></div>
-  <div class="karte"><h2>Umgerechnet</h2>
-   <div class="reihe"><span>Lebensmittel im Monat</span><span class="wert">${f0(b.w_lebensmittel*4.35)} €</span></div>
-   <div class="reihe"><span>Auswärts im Monat</span><span class="wert">${f0(b.w_auswaerts*4.35)} €</span></div>
-   <div class="reihe stark"><span>Alle vier Töpfe im Monat</span><span class="wert">${f0(b.w_lebensmittel*4.35+b.w_auswaerts*4.35+b.m_shopping+b.m_freizeit)} €</span></div></div>
-  <div class="karte"><h2>Kontoauszug importieren</h2>
-   <p class="text">CSV-Export deiner Bank hier einfügen — für rückwirkendes Erfassen, z. B. den ganzen August auf einmal. Datum, Betrag und Verwendungszweck werden erkannt, Ausgaben automatisch kategorisiert. Vor dem Import kannst du jede Zeile noch prüfen und die Kategorie ändern.</p>
-   <textarea class="feld" id="csvfeld" placeholder="CSV-Text hier einfügen">${esc(importText)}</textarea>
-   <button class="sekundaer" id="csvEinlesen">Einlesen</button></div>
-  <div class="karte"><h2>Daten sichern</h2>
-   <p class="text">Alles liegt nur auf diesem Gerät. Exportiere regelmäßig, dann kannst du die Daten weitergeben oder wiederherstellen.</p>
-   <button class="sekundaer" id="export">Als Datei exportieren</button>
-   <button class="sekundaer" id="kopieren">In die Zwischenablage</button>
-   <textarea class="feld" id="impfeld" placeholder="Zum Wiederherstellen: exportierten Text hier einfügen" style="margin-top:14px"></textarea>
-   <button class="sekundaer" id="import">Wiederherstellen</button></div>`;
+   <p class="finfo" style="margin-top:14px;line-height:1.6">${L("budgetErklaerung")}</p></div>
+  <div class="karte"><h2>${L("umgerechnet")}</h2>
+   <div class="reihe"><span>${L("lebensmittelMonat")}</span><span class="wert">${f0(b.w_lebensmittel*4.35)} €</span></div>
+   <div class="reihe"><span>${L("auswaertsMonat")}</span><span class="wert">${f0(b.w_auswaerts*4.35)} €</span></div>
+   <div class="reihe stark"><span>${L("alleToepfe")}</span><span class="wert">${f0(b.w_lebensmittel*4.35+b.w_auswaerts*4.35+b.m_shopping+b.m_freizeit)} €</span></div></div>
+  <div class="karte"><h2>${L("csvHeading")}</h2>
+   <p class="text">${L("csvText")}</p>
+   <textarea class="feld" id="csvfeld" placeholder="${L("csvPlaceholder")}">${esc(importText)}</textarea>
+   <button class="sekundaer" id="csvEinlesen">${L("einlesen")}</button></div>
+  <div class="karte"><h2>${L("datenSichern")}</h2>
+   <p class="text">${L("datenSichernText")}</p>
+   <button class="sekundaer" id="export">${L("alsDateiExportieren")}</button>
+   <button class="sekundaer" id="kopieren">${L("inZwischenablage")}</button>
+   <textarea class="feld" id="impfeld" placeholder="${L("wiederherstellenPlaceholder")}" style="margin-top:14px"></textarea>
+   <button class="sekundaer" id="import">${L("wiederherstellen")}</button></div>`;
 }
 
 function importAnsicht(){
   const n=importRows.filter(r=>r.drin).length;
-  return`<div class="karte"><h2>Import prüfen</h2>
-   <p class="text">${importRows.length} Buchungen erkannt und automatisch kategorisiert. Kategorie bei Bedarf ändern, Häkchen raus für Zeilen, die nicht rein sollen (z. B. Mieteingang, Umbuchung zwischen eigenen Konten).</p>
+  return`<div class="karte"><h2>${L("importPruefen")}</h2>
+   <p class="text">${L("importText")(importRows.length)}</p>
    <ul class="liste">${importRows.map(r=>`<li class="zeile">
     <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
     <span class="zeile-h">${esc(r.notiz||"—")}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
-    <select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);font-family:inherit;flex:none">
-     ${KAT.map(k=>`<option value="${k.id}"${k.id===r.kat?" selected":""}>${k.label}</option>`).join("")}
+    <select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
+     ${KAT.map(k=>`<option value="${k.id}"${k.id===r.kat?" selected":""}>${kl(k.id)}</option>`).join("")}
     </select>
     <span class="wert">${f2(r.betrag)}</span></li>`).join("")}</ul>
-   <button class="primaer" id="impBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${n} Buchungen importieren</button>
-   <button class="sekundaer" id="impAbbrechen">Abbrechen</button></div>`;
+   <button class="primaer" id="impBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${L("importBestaetigen")(n)}</button>
+   <button class="sekundaer" id="impAbbrechen">${L("abbrechen")}</button></div>`;
 }
 
 /* ═══ Rendern ══════════════════════════════════════════════ */
 function render(){
+  document.documentElement.lang=lang;
   const app=document.getElementById("app");
   if(importRows){app.innerHTML=importAnsicht();document.getElementById("nav").innerHTML="";bindenImport();return}
   const z=rechne();
-  const bald=z.bald.length?`<div class="bald"><div class="bald-lab">Diese Woche fällig</div>
+  const bald=z.bald.length?`<div class="bald"><div class="bald-lab">${L("baldFaellig")}</div>
    ${z.bald.map(f=>{const t=tdiff(f.wann,z.h0);
-   return`<div class="bald-z"><span>${esc(f.name)}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?"heute":"in "+t+" T"}</span></span></div>`}).join("")}</div>`:"";
+   return`<div class="bald-z"><span>${esc(fl(f.key))}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?L("heute"):L("inT")(t)}</span></span></div>`}).join("")}</div>`:"";
   const heute=new Date();
   app.innerHTML=`<div class="kopf"><div><div class="marke">Angélique</div>
-   <div class="datum">${WOT[heute.getDay()]}, ${heute.getDate()}. ${MONL[heute.getMonth()]}</div></div>
-   <div class="badge">Woche ${z.wom} von ${z.womT}</div></div>${bald}
+   <div class="datum">${WOT[lang][heute.getDay()]}, ${L("datumFormat")(heute.getDate(),MONL[lang][heute.getMonth()])}</div></div>
+   <div class="badge">${L("badgeWoche")(z.wom,z.womT)}</div></div>${bald}
    ${tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets()}`;
-  document.getElementById("nav").innerHTML=[["erfassen","Erfassen"],["faellig","Fällig"],["referenz","Referenz"],["budgets","Budgets"]]
+  document.getElementById("nav").innerHTML=[["erfassen",L("navErfassen")],["faellig",L("navFaellig")],["referenz",L("navReferenz")],["budgets",L("navBudgets")]]
    .map(([id,l])=>`<button class="${tab===id?"on":""}" data-tab="${id}">${l}</button>`).join("");
   binden();
 }
@@ -424,25 +561,29 @@ function binden(){
     const[jj,mm,tt]=datum.split("-").map(Number),ts=new Date(jj,mm-1,tt,12,0,0).getTime();
     S.eintraege.push({id:Date.now().toString(36),ts,betrag:b,kat,notiz:notiz.trim()});
     S.eintraege.sort((x,y)=>y.ts-x.ts);
-    sichern();wert="";notiz="";datum=isoDatum(new Date());render();toast("Gebucht")};
+    sichern();wert="";notiz="";datum=isoDatum(new Date());render();toast(L("tGebucht"))};
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     S.eintraege=S.eintraege.filter(e=>e.id!==b.dataset.del);sichern();render()});
   ["w_lebensmittel","w_auswaerts","m_shopping","m_freizeit"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.onchange=e=>{S.budget[id]=Math.max(0,parseFloat(e.target.value.replace(",","."))||0);sichern();render()}});
+  document.querySelectorAll("[data-theme-set]").forEach(b=>b.onclick=()=>{
+    theme=b.dataset.themeSet;localStorage.setItem("kontur:theme",theme);themeAnwenden();render()});
+  document.querySelectorAll("[data-lang-set]").forEach(b=>b.onclick=()=>{
+    lang=b.dataset.langSet;localStorage.setItem("kontur:lang",lang);render()});
   const ex=document.getElementById("export");
   if(ex)ex.onclick=()=>{
     const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-    a.download="kontur-"+new Date().toISOString().slice(0,10)+".json";a.click();toast("Exportiert")};
+    a.download="angelique-"+new Date().toISOString().slice(0,10)+".json";a.click();toast(L("tExportiert"))};
   const kp=document.getElementById("kopieren");
-  if(kp)kp.onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(S));toast("Kopiert")}catch(e){toast("Ging nicht")}};
+  if(kp)kp.onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(S));toast(L("tKopiert"))}catch(e){toast(L("tGingNicht"))}};
   const im=document.getElementById("import");
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})}};sichern();render();toast("Wiederhergestellt")}
-    catch(e){toast("Text nicht lesbar")}};
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})}};sichern();render();toast(L("tWiederhergestellt"))}
+    catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
   const ce=document.getElementById("csvEinlesen");
@@ -458,11 +599,12 @@ function bindenImport(){
   if(ok)ok.onclick=()=>{
     const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),betrag:r.betrag,kat:r.kat,notiz:r.notiz}));
     S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
-    sichern();const n=neue.length;importRows=null;importText="";tab="referenz";render();toast(n+" importiert")};
+    sichern();const n=neue.length;importRows=null;importText="";tab="referenz";render();toast(L("tImportiert")(n))};
   const ab=document.getElementById("impAbbrechen");
   if(ab)ab.onclick=()=>{importRows=null;render()};
 }
 
+themeAnwenden();
 laden();render();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
