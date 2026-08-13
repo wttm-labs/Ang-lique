@@ -20,11 +20,16 @@ body{margin:0;background:var(--bg);color:var(--tinte);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
   -webkit-font-smoothing:antialiased}
 #app{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 14px 96px}
-.kopf{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 14px}
+.kopf{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 4px 14px}
 .marke{font-size:15px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
 .datum{font-size:12px;color:var(--grau);margin-top:2px}
+.kopf-re{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.kopf-btns{display:flex;gap:6px}
 .badge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--grau);
   border:1px solid var(--linie);background:var(--karte);padding:5px 9px;border-radius:20px}
+.iconbtn{width:30px;height:30px;flex:none;border-radius:50%;border:1px solid var(--linie);
+  background:var(--karte);color:var(--tinte);font-size:14px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;padding:0}
 .karte{background:var(--karte);border-radius:16px;padding:18px;margin-bottom:12px;
   box-shadow:0 1px 2px rgba(16,20,26,.05)}
 .dunkel{background:var(--dunkel);color:#fff}
@@ -201,6 +206,7 @@ const T={
   umgerechnet:"Umgerechnet",lebensmittelMonat:"Lebensmittel im Monat",auswaertsMonat:"Auswärts im Monat",
   alleToepfe:"Alle vier Töpfe im Monat",
   darstellung:"Darstellung",hell:"Hell",dunkel:"Dunkel",sprache:"Sprache",
+  einstellungen:"Einstellungen",zuThemaWechseln:"Hell/Dunkel umschalten",einstellungenOeffnen:"Einstellungen öffnen",einstellungenSchliessen:"Einstellungen schließen",
   csvHeading:"Kontoauszug importieren",
   csvText:"CSV-Export deiner Bank hier einfügen — für rückwirkendes Erfassen, z. B. den ganzen August auf einmal. Datum, Betrag und Verwendungszweck werden erkannt, Ausgaben automatisch kategorisiert. Vor dem Import kannst du jede Zeile noch prüfen und die Kategorie ändern.",
   csvPlaceholder:"CSV-Text hier einfügen",einlesen:"Einlesen",
@@ -246,6 +252,7 @@ const T={
   umgerechnet:"Converted",lebensmittelMonat:"Groceries per month",auswaertsMonat:"Eating out per month",
   alleToepfe:"All four pots per month",
   darstellung:"Appearance",hell:"Light",dunkel:"Dark",sprache:"Language",
+  einstellungen:"Settings",zuThemaWechseln:"Switch light/dark",einstellungenOeffnen:"Open settings",einstellungenSchliessen:"Close settings",
   csvHeading:"Import bank statement",
   csvText:"Paste your bank's CSV export here — to backfill retroactively, e.g. all of August at once. Date, amount and description get detected, expenses get auto-categorized. Review and adjust every row before importing.",
   csvPlaceholder:"Paste CSV text here",einlesen:"Parse",
@@ -294,6 +301,7 @@ function wochenListe(d){
 
 let S={eintraege:[],budget:{...STD}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
 let importText="",importRows=null;
+let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
 let lang=localStorage.getItem("kontur:lang")||"de";
 
@@ -473,12 +481,7 @@ function referenz(z){
    ${rb.map(w=>`<div class="reihe${w.aktuell?" stark":""}"><span>${L("wocheLabel")} ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · "+L("aktuell"):""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}</span></div>`).join("")}</div>`;
 }
 
-function budgets(){
-  const F=[["w_lebensmittel",L("lebensmittelWoche"),L("taeglich")],
-   ["w_auswaerts",L("auswaertsWoche"),L("taeglich")],
-   ["m_shopping",L("shoppingMonat"),L("inSchueben")],
-   ["m_freizeit",L("freizeitMonat"),L("inSchueben")]];
-  const b=S.budget;
+function einstellungen(){
   return`<div class="karte"><h2>${L("darstellung")}</h2>
    <div class="chips">
     <button class="chip${theme==='light'?' on':''}" data-theme-set="light">${L("hell")}</button>
@@ -487,8 +490,16 @@ function budgets(){
    <div class="chips" style="margin-bottom:0">
     <button class="chip${lang==='de'?' on':''}" data-lang-set="de">Deutsch</button>
     <button class="chip${lang==='en'?' on':''}" data-lang-set="en">English</button>
-   </div></div>
-  <div class="karte"><h2>${L("budgetsHeading")}</h2>
+   </div></div>`;
+}
+
+function budgets(){
+  const F=[["w_lebensmittel",L("lebensmittelWoche"),L("taeglich")],
+   ["w_auswaerts",L("auswaertsWoche"),L("taeglich")],
+   ["m_shopping",L("shoppingMonat"),L("inSchueben")],
+   ["m_freizeit",L("freizeitMonat"),L("inSchueben")]];
+  const b=S.budget;
+  return`<div class="karte"><h2>${L("budgetsHeading")}</h2>
    ${F.map(([id,l,h])=>`<div class="feldzeile"><div><label for="${id}">${l}</label><div class="finfo">${h}</div></div>
    <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`).join("")}
    <p class="finfo" style="margin-top:14px;line-height:1.6">${L("budgetErklaerung")}</p></div>
@@ -535,15 +546,23 @@ function render(){
   const heute=new Date();
   app.innerHTML=`<div class="kopf"><div><div class="marke">Angélique</div>
    <div class="datum">${WOT[lang][heute.getDay()]}, ${L("datumFormat")(heute.getDate(),MONL[lang][heute.getMonth()])}</div></div>
-   <div class="badge">${L("badgeWoche")(z.wom,z.womT)}</div></div>${bald}
-   ${tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets()}`;
+   <div class="kopf-re"><div class="badge">${L("badgeWoche")(z.wom,z.womT)}</div>
+    <div class="kopf-btns">
+     <button class="iconbtn" id="themeToggle" aria-label="${L("zuThemaWechseln")}">${theme==="dark"?"☀":"☾"}</button>
+     <button class="iconbtn" id="settingsBtn" aria-label="${settingsOffen?L("einstellungenSchliessen"):L("einstellungenOeffnen")}">${settingsOffen?"✕":"⚙"}</button>
+    </div></div></div>${bald}
+   ${settingsOffen?einstellungen():(tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets())}`;
   document.getElementById("nav").innerHTML=[["erfassen",L("navErfassen")],["faellig",L("navFaellig")],["referenz",L("navReferenz")],["budgets",L("navBudgets")]]
    .map(([id,l])=>`<button class="${tab===id?"on":""}" data-tab="${id}">${l}</button>`).join("");
   binden();
 }
 
 function binden(){
-  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;settingsOffen=false;render()});
+  const tt=document.getElementById("themeToggle");
+  if(tt)tt.onclick=()=>{theme=theme==="dark"?"light":"dark";localStorage.setItem("kontur:theme",theme);themeAnwenden();render()};
+  const sb=document.getElementById("settingsBtn");
+  if(sb)sb.onclick=()=>{settingsOffen=!settingsOffen;render()};
   document.querySelectorAll("[data-kat]").forEach(b=>b.onclick=()=>{kat=b.dataset.kat;render()});
   document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
     const t=b.dataset.t;
