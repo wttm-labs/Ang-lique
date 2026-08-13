@@ -20,16 +20,15 @@ body{margin:0;background:var(--bg);color:var(--tinte);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
   -webkit-font-smoothing:antialiased}
 #app{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 14px 96px}
-.kopf{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 4px 14px}
+.kopf{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 14px}
+.marke-zeile{display:flex;align-items:center;gap:8px}
 .marke{font-size:15px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
 .datum{font-size:12px;color:var(--grau);margin-top:2px}
-.kopf-re{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
-.kopf-btns{display:flex;gap:6px}
 .badge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--grau);
-  border:1px solid var(--linie);background:var(--karte);padding:5px 9px;border-radius:20px}
-.iconbtn{width:30px;height:30px;flex:none;border-radius:50%;border:1px solid var(--linie);
-  background:var(--karte);color:var(--tinte);font-size:14px;cursor:pointer;font-family:inherit;
-  display:flex;align-items:center;justify-content:center;padding:0}
+  border:1px solid var(--linie);background:var(--karte);padding:5px 9px;border-radius:20px;flex:none}
+.iconbtn{background:none;border:none;color:var(--grau);font-size:13px;cursor:pointer;
+  font-family:inherit;padding:2px;line-height:1;display:flex;align-items:center;justify-content:center}
+.iconbtn:active{color:var(--tinte)}
 .karte{background:var(--karte);border-radius:16px;padding:18px;margin-bottom:12px;
   box-shadow:0 1px 2px rgba(16,20,26,.05)}
 .dunkel{background:var(--dunkel);color:#fff}
@@ -544,13 +543,13 @@ function render(){
    ${z.bald.map(f=>{const t=tdiff(f.wann,z.h0);
    return`<div class="bald-z"><span>${esc(fl(f.key))}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?L("heute"):L("inT")(t)}</span></span></div>`}).join("")}</div>`:"";
   const heute=new Date();
-  app.innerHTML=`<div class="kopf"><div><div class="marke">Angélique</div>
+  app.innerHTML=`<div class="kopf"><div>
+   <div class="marke-zeile"><span class="marke">Angélique</span>
+    <button class="iconbtn" id="themeToggle" aria-label="${L("zuThemaWechseln")}">${theme==="dark"?"☀":"☾"}</button>
+    <button class="iconbtn" id="settingsBtn" aria-label="${settingsOffen?L("einstellungenSchliessen"):L("einstellungenOeffnen")}">${settingsOffen?"✕":"⚙"}</button>
+   </div>
    <div class="datum">${WOT[lang][heute.getDay()]}, ${L("datumFormat")(heute.getDate(),MONL[lang][heute.getMonth()])}</div></div>
-   <div class="kopf-re"><div class="badge">${L("badgeWoche")(z.wom,z.womT)}</div>
-    <div class="kopf-btns">
-     <button class="iconbtn" id="themeToggle" aria-label="${L("zuThemaWechseln")}">${theme==="dark"?"☀":"☾"}</button>
-     <button class="iconbtn" id="settingsBtn" aria-label="${settingsOffen?L("einstellungenSchliessen"):L("einstellungenOeffnen")}">${settingsOffen?"✕":"⚙"}</button>
-    </div></div></div>${bald}
+   <div class="badge">${L("badgeWoche")(z.wom,z.womT)}</div></div>${bald}
    ${settingsOffen?einstellungen():(tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets())}`;
   document.getElementById("nav").innerHTML=[["erfassen",L("navErfassen")],["faellig",L("navFaellig")],["referenz",L("navReferenz")],["budgets",L("navBudgets")]]
    .map(([id,l])=>`<button class="${tab===id?"on":""}" data-tab="${id}">${l}</button>`).join("");
