@@ -131,7 +131,7 @@ const KAT=[
  {id:"auswaerts",label:"Auswärts & Kaffee",topf:"w_auswaerts",ref:80},
  {id:"shopping",label:"Shopping",topf:"m_shopping",ref:150},
  {id:"freizeit",label:"Freizeit & Events",topf:"m_freizeit",ref:60},
- {id:"geschenke",label:"Geschenke",topf:null,ref:0},
+ {id:"geschenke",label:"Geschenke & Anlässe",topf:null,ref:0},
  {id:"haushalt",label:"Drogerie & Haushalt",topf:null,ref:40},
  {id:"transport",label:"Transport",topf:null,ref:50},
  {id:"gesundheit",label:"Gesundheit",topf:null,ref:30},
@@ -225,6 +225,7 @@ function erfassen(z){
   <div class="karte">
    <div class="eingabe"><span class="eingabe-z">${wert===""?"0":esc(wert)}</span><span class="eingabe-e">€</span></div>
    <div class="chips">${KAT.map(k=>`<button class="chip${k.id===kat?" on":""}" data-kat="${k.id}">${k.label}</button>`).join("")}</div>
+   ${!a.topf?`<p class="finfo" style="margin:-6px 0 14px">Ohne Budget-Deckel — für Ausgaben, die anfallen und sich nicht vermeiden lassen (z. B. Geschenke, Einladungen). Zählt nur in die Monatssumme, nicht gegen einen Topf.</p>`:""}
    <input class="feld" id="notiz" placeholder="Notiz, z. B. Espressolab" value="${esc(notiz)}">
    <div class="pad">${["1","2","3","4","5","6","7","8","9",",","0","back"].map(x=>`<button class="taste" data-t="${x}">${x==="back"?"⌫":x}</button>`).join("")}</div>
    ${b>0&&danach!==null?`<div class="vorschau${danach<0?" rot":""}">${danach<0?"Danach "+f0(-danach)+" € über dem Budget":"Danach bleiben "+f0(danach)+" €"}</div>`:""}
@@ -263,15 +264,16 @@ function referenz(z){
 }
 
 function budgets(){
-  const F=[["w_lebensmittel","Lebensmittel pro Woche",""],
-   ["w_auswaerts","Auswärts pro Woche",""],
-   ["m_shopping","Shopping pro Monat",""],
-   ["m_freizeit","Freizeit pro Monat",""]];
+  const F=[["w_lebensmittel","Lebensmittel pro Woche","fällt täglich an"],
+   ["w_auswaerts","Auswärts pro Woche","fällt täglich an"],
+   ["m_shopping","Shopping pro Monat","kommt in Schüben, nicht täglich"],
+   ["m_freizeit","Freizeit pro Monat","kommt in Schüben, nicht täglich"]];
   const b=S.budget;
   return`<div class="karte"><h2>Budgets</h2>
    ${F.map(([id,l,h])=>`<div class="feldzeile"><div><label for="${id}">${l}</label><div class="finfo">${h}</div></div>
    <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`).join("")}
-   <p class="finfo" style="margin-top:14px;line-height:1.6">Lebensmittel und Auswärts laufen wöchentlich — wer sie monatlich führt, steht in der letzten Woche vor dem Nichts.</p></div>
+   <p class="finfo" style="margin-top:14px;line-height:1.6">Lebensmittel und Auswärts laufen wöchentlich, weil sie täglich anfallen — ein Monatsbudget verleitet dazu, einzelne Ausreißer wegzurationalisieren, die Woche gibt schnellere Rückmeldung. Shopping und Freizeit kommen eher in Schüben, deshalb reicht dort der Monat als Zyklus.
+   <br><br>Geschenke, Einladungen & Anlässe haben bewusst keinen Topf: Das sind Ausgaben, die anfallen und sich nicht vermeiden lassen — die tauchen nur in der Monatssumme und im Referenz-Tab auf, ohne ein Wochen- oder Monatsbudget zu sprengen.</p></div>
   <div class="karte"><h2>Umgerechnet</h2>
    <div class="reihe"><span>Lebensmittel im Monat</span><span class="wert">${f0(b.w_lebensmittel*4.35)} €</span></div>
    <div class="reihe"><span>Auswärts im Monat</span><span class="wert">${f0(b.w_auswaerts*4.35)} €</span></div>
