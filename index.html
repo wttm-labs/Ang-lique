@@ -249,7 +249,16 @@ const T={
   tGebucht:"Gebucht",tExportiert:"Exportiert",tKopiert:"Kopiert",tGingNicht:"Ging nicht",
   tWiederhergestellt:"Wiederhergestellt",tTextNichtLesbar:"Text nicht lesbar",tSpeichernFehlgeschlagen:"Speichern fehlgeschlagen",
   tKeineZeilen:"Keine Zeilen gefunden",tSpalteNichtErkannt:"Datum- oder Betrag-Spalte nicht erkannt",
-  tKeineAusgaben:"Keine Ausgaben gefunden (nur Eingänge?)",tImportiert:n=>`${n} importiert`
+  tKeineAusgaben:"Keine Ausgaben gefunden (nur Eingänge?)",tImportiert:n=>`${n} importiert`,
+  moeglichesDuplikat:"evtl. schon drin",
+  wiederkehrendeErkennen:"Wiederkehrende erkennen",tKeineAbosErkannt:"Keine wiederkehrenden Zahlungen gefunden",
+  aboErkannt:"Wiederkehrende Zahlungen erkannt",
+  aboErkanntText:n=>`${n} mögliche Abos gefunden — anhand von mindestens drei ähnlichen Buchungen über verschiedene Monate. Prüfen und übernehmen.`,
+  proMonatAm:t=>`monatlich, etwa am ${t}.`,
+  aboUebernehmen:n=>`${n} übernehmen`,tAboUebernommen:n=>`${n} Abos übernommen`,
+  allesLoeschen:"Alles löschen",
+  allesLoeschenConfirm:"Wirklich alle Buchungen löschen? Das kann nicht rückgängig gemacht werden.",
+  tAllesGeloescht:"Alles gelöscht"
  },
  en:{
   navErfassen:"Log",navFaellig:"Due",navReferenz:"Insights",navBudgets:"Budgets",
@@ -306,7 +315,16 @@ const T={
   tGebucht:"Logged",tExportiert:"Exported",tKopiert:"Copied",tGingNicht:"Didn't work",
   tWiederhergestellt:"Restored",tTextNichtLesbar:"Couldn't read that text",tSpeichernFehlgeschlagen:"Save failed",
   tKeineZeilen:"No rows found",tSpalteNichtErkannt:"Couldn't detect date or amount column",
-  tKeineAusgaben:"No expenses found (income only?)",tImportiert:n=>`${n} imported`
+  tKeineAusgaben:"No expenses found (income only?)",tImportiert:n=>`${n} imported`,
+  moeglichesDuplikat:"maybe already logged",
+  wiederkehrendeErkennen:"Detect recurring",tKeineAbosErkannt:"No recurring payments found",
+  aboErkannt:"Recurring payments detected",
+  aboErkanntText:n=>`Found ${n} possible subscriptions — based on at least three similar entries across different months. Review and confirm.`,
+  proMonatAm:t=>`monthly, around day ${t}`,
+  aboUebernehmen:n=>`Add ${n}`,tAboUebernommen:n=>`${n} subscriptions added`,
+  allesLoeschen:"Delete everything",
+  allesLoeschenConfirm:"Really delete all entries? This can't be undone.",
+  tAllesGeloescht:"Everything deleted"
  }};
 
 const MONL={
@@ -325,6 +343,8 @@ const wstart=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-(
 const tdiff=(a,b)=>Math.round((a-b)/864e5);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const isoDatum=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const normalisiere=s=>(s||"").toLowerCase().trim().replace(/\s+/g," ");
+const nameVon=f=>f.key?fl(f.key):f.name;
 const wocheDesMonats=d=>{const erster=new Date(d.getFullYear(),d.getMonth(),1),off=(erster.getDay()+6)%7;return Math.ceil((d.getDate()+off)/7)};
 const wochenImMonat=d=>wocheDesMonats(new Date(d.getFullYear(),d.getMonth()+1,0));
 function wochenListe(d){
@@ -366,8 +386,9 @@ function berechneErfolge(){
     monatgruen:monatGruen,rueckwirkend:!!S.marken.rueckwirkend,import:!!S.marken.import};
 }
 
-let S={eintraege:[],budget:{...STD},marken:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
 let importText="",importRows=null;
+let aboVorschlaege=null;
 let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
 let lang=localStorage.getItem("kontur:lang")||"de";
@@ -385,7 +406,7 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
@@ -407,9 +428,36 @@ const AUTOKAT=[
  [/kino|spotify|netflix|disney|fitness|crossfit|fit\/one/i,"freizeit"],
  [/geschenk/i,"geschenke"]];
 function autoKategorie(text){
+  const norm=normalisiere(text);
+  if(norm&&S.gelernt[norm])return S.gelernt[norm];
   const t=(text||"").toLowerCase();
   for(const[re,kat]of AUTOKAT)if(re.test(t))return kat;
   return "sonstiges";
+}
+function istDuplikat(datum,betrag){
+  const tagStart=new Date(datum.getFullYear(),datum.getMonth(),datum.getDate()).getTime(),tagEnd=tagStart+86399999;
+  return S.eintraege.some(e=>e.ts>=tagStart&&e.ts<=tagEnd&&Math.abs(e.betrag-betrag)<0.01);
+}
+function erkenneAbos(){
+  const gruppen={};
+  S.eintraege.forEach(e=>{
+    const key=normalisiere(e.notiz);
+    if(!key)return;
+    (gruppen[key]=gruppen[key]||[]).push(e);
+  });
+  const bekannt=new Set([...FIX.map(f=>normalisiere(fl(f.key))),...S.abos.map(a=>normalisiere(a.name))]);
+  const vorschlaege=[];
+  Object.entries(gruppen).forEach(([key,posten])=>{
+    if(posten.length<3||bekannt.has(key))return;
+    const betraege=posten.map(e=>e.betrag).sort((a,b)=>a-b);
+    const median=betraege[Math.floor(betraege.length/2)];
+    if(betraege[betraege.length-1]-betraege[0]>median*0.2+2)return;
+    const monate=new Set(posten.map(e=>mk(new Date(e.ts))));
+    if(monate.size<3)return;
+    const tage=posten.map(e=>new Date(e.ts).getDate()).sort((a,b)=>a-b);
+    vorschlaege.push({id:"vs_"+key,name:posten[0].notiz.trim(),betrag:Math.round(median*100)/100,tag:tage[Math.floor(tage.length/2)],anzahl:posten.length});
+  });
+  return vorschlaege;
 }
 function parseCSV(text){
   const zeilen=text.split(/\r?\n/).map(z=>z.trim()).filter(z=>z.length);
@@ -448,7 +496,10 @@ function csvEinlesen(){
   const geparst=rows.map(r=>({datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),text:iText>=0?r[iText]:""}))
     .filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag<0);
   if(!geparst.length){toast(L("tKeineAusgaben"));return}
-  importRows=geparst.map((r,i)=>({id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:(r.text||"").slice(0,60),kat:autoKategorie(r.text),drin:true}));
+  importRows=geparst.map((r,i)=>{
+    const dup=istDuplikat(r.datum,Math.abs(r.betrag));
+    return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:(r.text||"").slice(0,60),kat:autoKategorie(r.text),drin:!dup,dup};
+  });
   render();
 }
 
@@ -472,7 +523,7 @@ function rechne(){
    {id:"m_shopping",label:kl("shopping"),zykZeile:L("zykMonat")(MONL[lang][now.getMonth()],tag,tage),ist:s(inM,"shopping"),budget:S.budget.m_shopping,pos:tag,von:tage},
    {id:"m_freizeit",label:kl("freizeit"),zykZeile:L("zykMonat")(MONL[lang][now.getMonth()],tag,tage),ist:s(inM,"freizeit"),budget:S.budget.m_freizeit,pos:tag,von:tage}];
   const h0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  const faellig=[...FIX.map(f=>({...f,wann:naechste(f,now)})).filter(f=>f.wann),
+  const faellig=[...[...FIX,...S.abos].map(f=>({...f,wann:naechste(f,now)})).filter(f=>f.wann),
     ...EINMAL.map(e=>({...e,wann:new Date(e.datum),einmalig:1})).filter(e=>e.wann>=h0)].sort((a,b)=>a.wann-b.wann);
   return{tag,tage,wtag,wom,womT,toepfe,faellig,bald:faellig.filter(f=>tdiff(f.wann,h0)<=7),h0,
     monatGesamt:s(inM),proKat:KAT.map(k=>({...k,summe:s(inM,k.id)})),anzahl:inM.length};
@@ -517,19 +568,20 @@ function erfassen(z){
 }
 
 function faellig(z){
-  const sm=FIX.filter(f=>f.typ==="monat").reduce((s,f)=>s+f.betrag,0);
+  const alleFix=[...FIX,...S.abos];
+  const sm=alleFix.filter(f=>f.typ==="monat").reduce((s,f)=>s+f.betrag,0);
   return`<div class="karte dunkel"><div class="topf-lab">${L("festeAbgaenge")}</div>
    <div class="gross">${f0(sm)} €</div>
    <div class="topf-fuss">${L("ohneQuartal")}</div></div>
-  <div class="karte"><h2>${L("deineAbos")}</h2>${FIX.map(f=>`
-   <div class="fz"><div class="fi"><div class="fn">${esc(fl(f.key))}${f.bis?`<span class="flab warn">${L("endetAm")(String(new Date(f.bis).getDate()).padStart(2,"0")+"."+String(new Date(f.bis).getMonth()+1).padStart(2,"0")+".")}</span>`:""}</div>
+  <div class="karte"><h2>${L("deineAbos")}</h2>${alleFix.map(f=>`
+   <div class="fz"><div class="fi"><div class="fn">${esc(nameVon(f))}${f.bis?`<span class="flab warn">${L("endetAm")(String(new Date(f.bis).getDate()).padStart(2,"0")+"."+String(new Date(f.bis).getMonth()+1).padStart(2,"0")+".")}</span>`:""}</div>
    <div class="finfo">${f.typ==="monat"?L("monatlich"):L("quartalsweise")}</div></div>
    <div class="fw">${f0(f.betrag)} €</div></div>`).join("")}</div>
   <div class="karte"><h2>${L("alsNaechstesFaellig")}</h2>${z.faellig.slice(0,14).map(f=>{
     const t=tdiff(f.wann,z.h0);
     return`<div class="fz"><div class="fd"><div class="ft">${String(f.wann.getDate()).padStart(2,"0")}</div>
     <div class="fm">${MONL[lang][f.wann.getMonth()].slice(0,3)}</div></div>
-    <div class="fi"><div class="fn">${esc(fl(f.key))}${f.einmalig?`<span class="flab">${L("einmalig")}</span>`:""}</div>
+    <div class="fi"><div class="fn">${esc(nameVon(f))}${f.einmalig?`<span class="flab">${L("einmalig")}</span>`:""}</div>
     ${f.info?`<div class="finfo">${esc(f.info)}</div>`:""}
     <div class="finfo">${t===0?L("heute"):L("inTagen")(t)}</div></div>
     <div class="fw">${f0(f.betrag)} €</div></div>`}).join("")}</div>`;
@@ -605,13 +657,15 @@ function budgets(){
   <div class="karte"><h2>${L("csvHeading")}</h2>
    <p class="text">${L("csvText")}</p>
    <textarea class="feld" id="csvfeld" placeholder="${L("csvPlaceholder")}">${esc(importText)}</textarea>
-   <button class="sekundaer" id="csvEinlesen">${L("einlesen")}</button></div>
+   <button class="sekundaer" id="csvEinlesen">${L("einlesen")}</button>
+   <button class="sekundaer" id="aboErkennen">${L("wiederkehrendeErkennen")}</button></div>
   <div class="karte"><h2>${L("datenSichern")}</h2>
    <p class="text">${L("datenSichernText")}</p>
    <button class="sekundaer" id="export">${L("alsDateiExportieren")}</button>
    <button class="sekundaer" id="kopieren">${L("inZwischenablage")}</button>
    <textarea class="feld" id="impfeld" placeholder="${L("wiederherstellenPlaceholder")}" style="margin-top:14px"></textarea>
-   <button class="sekundaer" id="import">${L("wiederherstellen")}</button></div>`;
+   <button class="sekundaer" id="import">${L("wiederherstellen")}</button>
+   <button class="sekundaer" id="allesLoeschen" style="border-color:var(--rot);color:var(--rot);margin-top:18px">${L("allesLoeschen")}</button></div>`;
 }
 
 function importAnsicht(){
@@ -620,7 +674,7 @@ function importAnsicht(){
    <p class="text">${L("importText")(importRows.length)}</p>
    <ul class="liste">${importRows.map(r=>`<li class="zeile">
     <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
-    <span class="zeile-h">${esc(r.notiz||"—")}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
+    <span class="zeile-h">${esc(r.notiz||"—")}${r.dup?`<span class="flab warn">${L("moeglichesDuplikat")}</span>`:""}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
     <select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
      ${KAT.map(k=>`<option value="${k.id}"${k.id===r.kat?" selected":""}>${kl(k.id)}</option>`).join("")}
     </select>
@@ -629,15 +683,28 @@ function importAnsicht(){
    <button class="sekundaer" id="impAbbrechen">${L("abbrechen")}</button></div>`;
 }
 
+function aboVorschlaegeAnsicht(){
+  const n=aboVorschlaege.filter(v=>v.drin).length;
+  return`<div class="karte"><h2>${L("aboErkannt")}</h2>
+   <p class="text">${L("aboErkanntText")(aboVorschlaege.length)}</p>
+   <ul class="liste">${aboVorschlaege.map(v=>`<li class="zeile">
+    <input type="checkbox" data-vs-check="${v.id}"${v.drin?" checked":""} style="flex:none;width:18px;height:18px">
+    <span class="zeile-h">${esc(v.name)}<span class="zeile-n">${L("proMonatAm")(v.tag)} · ${v.anzahl}×</span></span>
+    <span class="wert">${f0(v.betrag)} €</span></li>`).join("")}</ul>
+   <button class="primaer" id="vsBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${L("aboUebernehmen")(n)}</button>
+   <button class="sekundaer" id="vsAbbrechen">${L("abbrechen")}</button></div>`;
+}
+
 /* ═══ Rendern ══════════════════════════════════════════════ */
 function render(){
   document.documentElement.lang=lang;
   const app=document.getElementById("app");
   if(importRows){app.innerHTML=importAnsicht();document.getElementById("nav").innerHTML="";bindenImport();return}
+  if(aboVorschlaege){app.innerHTML=aboVorschlaegeAnsicht();document.getElementById("nav").innerHTML="";bindenAboVorschlaege();return}
   const z=rechne();
   const bald=z.bald.length?`<div class="bald"><div class="bald-lab">${L("baldFaellig")}</div>
    ${z.bald.map(f=>{const t=tdiff(f.wann,z.h0);
-   return`<div class="bald-z"><span>${esc(fl(f.key))}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?L("heute"):L("inT")(t)}</span></span></div>`}).join("")}</div>`:"";
+   return`<div class="bald-z"><span>${esc(nameVon(f))}</span><span class="wert">${f0(f.betrag)} €<span class="bald-t">${t===0?L("heute"):L("inT")(t)}</span></span></div>`}).join("")}</div>`:"";
   const heute=new Date();
   app.innerHTML=`<div class="kopf"><div>
    <div class="marke-zeile"><span class="marke">Angélique</span>
@@ -674,6 +741,7 @@ function binden(){
     const b=parseFloat(wert.replace(",","."))||0;if(b<=0)return;
     const[jj,mm,tt]=datum.split("-").map(Number),ts=new Date(jj,mm-1,tt,12,0,0).getTime();
     if(datum!==isoDatum(new Date()))S.marken.rueckwirkend=true;
+    if(notiz.trim())S.gelernt[normalisiere(notiz)]=kat;
     S.eintraege.push({id:Date.now().toString(36),ts,betrag:b,kat,notiz:notiz.trim()});
     S.eintraege.sort((x,y)=>y.ts-x.ts);
     sichern();wert="";notiz="";datum=isoDatum(new Date());render();toast(L("tGebucht"))};
@@ -697,12 +765,20 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{}};sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{}};sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
   const ce=document.getElementById("csvEinlesen");
   if(ce)ce.onclick=()=>csvEinlesen();
+  const ae=document.getElementById("aboErkennen");
+  if(ae)ae.onclick=()=>{
+    const v=erkenneAbos();
+    if(v.length){aboVorschlaege=v.map(x=>({...x,drin:true}));render()}
+    else toast(L("tKeineAbosErkannt"))};
+  const al=document.getElementById("allesLoeschen");
+  if(al)al.onclick=()=>{
+    if(confirm(L("allesLoeschenConfirm"))){S.eintraege=[];S.marken={};sichern();render();toast(L("tAllesGeloescht"))}};
 }
 
 function bindenImport(){
@@ -714,10 +790,27 @@ function bindenImport(){
   if(ok)ok.onclick=()=>{
     const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),betrag:r.betrag,kat:r.kat,notiz:r.notiz}));
     if(neue.length)S.marken.import=true;
+    neue.forEach(r=>{if(r.notiz)S.gelernt[normalisiere(r.notiz)]=r.kat});
     S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
-    sichern();const n=neue.length;importRows=null;importText="";tab="referenz";render();toast(L("tImportiert")(n))};
+    sichern();const n=neue.length;importRows=null;importText="";
+    const vorschlaege=erkenneAbos();
+    if(vorschlaege.length){aboVorschlaege=vorschlaege.map(v=>({...v,drin:true}))}
+    else tab="referenz";
+    render();toast(L("tImportiert")(n))};
   const ab=document.getElementById("impAbbrechen");
   if(ab)ab.onclick=()=>{importRows=null;render()};
+}
+
+function bindenAboVorschlaege(){
+  document.querySelectorAll("[data-vs-check]").forEach(c=>c.onchange=e=>{
+    const v=aboVorschlaege.find(x=>x.id===c.dataset.vsCheck);v.drin=e.target.checked;render()});
+  const ok=document.getElementById("vsBestaetigen");
+  if(ok)ok.onclick=()=>{
+    const neu=aboVorschlaege.filter(v=>v.drin).map(v=>({id:"abo"+Date.now()+Math.random().toString(36).slice(2,5),name:v.name,betrag:v.betrag,typ:"monat",tag:v.tag}));
+    S.abos=S.abos.concat(neu);sichern();
+    const n=neu.length;aboVorschlaege=null;tab="faellig";render();toast(L("tAboUebernommen")(n))};
+  const ab=document.getElementById("vsAbbrechen");
+  if(ab)ab.onclick=()=>{aboVorschlaege=null;tab="referenz";render()};
 }
 
 themeAnwenden();
