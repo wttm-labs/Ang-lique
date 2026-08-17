@@ -220,6 +220,7 @@ const T={
   saldoText:"Einnahmen minus Ausgaben — für Geld, das unerwartet reinkommt, buche es oben als Einnahme statt als Ausgabe.",
   einnahmenMonat:"Einnahmen",ausgabenMonat:"Ausgaben",saldoMonat:"Bleibt",
   einnahme:"Einnahme",notizEinnahmePlaceholder:"Notiz, z. B. Rückerstattung",
+  einkommen:"Einkommen",rueckfluss:"Rückfluss",
   schnittText:"Median aus deinen abgeschlossenen Monaten, daneben was du diesen Monat gebucht hast. Der Wert nach dem Schrägstrich lässt sich direkt antippen und überschreiben.",
   monatsvergleich:"Monatsvergleich",
   monatsvergleichText:"Diese Kategorie diesen Monat im Vergleich zum letzten — Pfeil nach oben heißt mehr ausgegeben als im Vormonat.",
@@ -283,6 +284,7 @@ const T={
   parallelHeading:"Mehrere ähnliche Abos gleichzeitig",
   parallelText:(n,kat,namen,summe)=>`${n}× in "${kat}" gleichzeitig aktiv: ${namen} — zusammen ${summe} €/Monat.`,
   jahresabrechnungHinweis:b=>`zusätzlich Jahresabrechnung ~${b} € nicht mitgerechnet`,
+  bezugsmonatHinweis:(m,j)=>`für ${m} ${j}`,semantischErkannt:"anhand des Verwendungszwecks erkannt, nicht statistisch",
   unsicherHeading:"Wahrscheinlich wiederkehrend, unregelmäßig",
   unsicherText:"Kommt öfter vor, aber Betrag oder Abstand schwanken zu stark für eine automatische Einstufung. Selbst entscheiden:",
   unsicherJa:"Ja, wiederkehrend",unsicherNein:"Nein, kein Muster",
@@ -320,6 +322,7 @@ const T={
   saldoText:"Income minus expenses — for money that comes in unexpectedly, log it above as income instead of an expense.",
   einnahmenMonat:"Income",ausgabenMonat:"Expenses",saldoMonat:"Left over",
   einnahme:"Income",notizEinnahmePlaceholder:"Note, e.g. refund",
+  einkommen:"Earnings",rueckfluss:"Refund",
   schnittText:"Median from your completed months, next to what you've logged this month. Tap the number after the slash to edit it directly.",
   monatsvergleich:"Month comparison",
   monatsvergleichText:"This category this month vs. last month — an upward arrow means you spent more than the month before.",
@@ -383,6 +386,7 @@ const T={
   parallelHeading:"Several similar subscriptions at once",
   parallelText:(n,kat,namen,summe)=>`${n}× active at once in "${kat}": ${namen} — ${summe} €/month combined.`,
   jahresabrechnungHinweis:b=>`plus ~${b} € annual bill excluded from the average`,
+  bezugsmonatHinweis:(m,j)=>`for ${m} ${j}`,semantischErkannt:"detected from the payment reference, not statistically",
   unsicherHeading:"Probably recurring, but irregular",
   unsicherText:"Happens repeatedly, but amount or timing vary too much for an automatic call. Decide yourself:",
   unsicherJa:"Yes, recurring",unsicherNein:"No, no pattern",
@@ -476,7 +480,7 @@ function budgetVorschlag(katId){
     monate:monate.map(m=>MONL[lang][parseInt(m.split("-")[1],10)-1])};
 }
 
-let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0;
 let manAboName="",manAboBetrag="",manAboZyklus="monat",manAboDatum=isoDatum(new Date());
 let offeneKategorie=null;
@@ -499,7 +503,7 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};S.schulden=d.schulden||[];S.kontostand=d.kontostand||null;return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
@@ -659,9 +663,15 @@ function trenneJahresabrechnung(eintraege){
   const haupt=cluster[0];
   if(haupt.length<3||haupt.length<eintraege.length*0.5)return{normal:eintraege,jahresabrechnungen:[]};
   const hauptMittel=haupt.reduce((s,e)=>s+e.betrag,0)/haupt.length;
-  const jahresabrechnungen=eintraege.filter(e=>!haupt.includes(e)&&e.betrag>hauptMittel*1.3);
+  const jahresabrechnungen=eintraege.filter(e=>!haupt.includes(e)&&(e.betrag>hauptMittel*1.3||e.betrag<hauptMittel*0.7));
   const normal=eintraege.filter(e=>!jahresabrechnungen.includes(e));
   return{normal,jahresabrechnungen};
+}
+const SEMANTISCHE_FIXKOSTEN_KEYWORDS=["miete","mietzahlung","kaltmiete","warmmiete","untermiete",
+ "abschlag","beitrag","versicherung","\\brate\\b","darlehen","tilgung","rundfunkbeitrag","mobilfunk","festnetz"];
+function hatSemantischesSignal(eintraege){
+  const re=new RegExp(SEMANTISCHE_FIXKOSTEN_KEYWORDS.join("|"),"i");
+  return eintraege.some(e=>re.test(e.zweck||e.notiz||""));
 }
 function gruppenBilden(eintraege){
   const haendlerGruppen=clustereHaendler(eintraege);
@@ -678,17 +688,18 @@ function gruppenBilden(eintraege){
         if(vk)(mitKennung[vk]=mitKennung[vk]||[]).push(e);else ohneKennung.push(e);
       });
       Object.entries(mitKennung).forEach(([vk,es])=>{
-        finalGruppen.push({schluessel:hSchluessel+"|"+vk,eintraege:es,kartenAbo:istKarte,kartenErlaubt});
+        finalGruppen.push({schluessel:hSchluessel+"|"+vk,eintraege:es,kartenAbo:istKarte,kartenErlaubt,semantisch:hatSemantischesSignal(es)});
       });
       if(ohneKennung.length){
-        const grobeCluster=istKarte?[ohneKennung]:clustereBetraegeEinfach(ohneKennung);
+        const semantisch=hatSemantischesSignal(ohneKennung);
+        const grobeCluster=(istKarte||semantisch)?[ohneKennung]:clustereBetraegeEinfach(ohneKennung);
         if(grobeCluster.length<=3){
-          const betragsCluster=istKarte?[ohneKennung]:clustereBetraege(ohneKennung);
+          const betragsCluster=(istKarte||semantisch)?[ohneKennung]:clustereBetraege(ohneKennung);
           betragsCluster.forEach((c,i)=>{
-            finalGruppen.push({schluessel:hSchluessel+(betragsCluster.length>1?"#"+i:""),eintraege:c,kartenAbo:istKarte,kartenErlaubt});
+            finalGruppen.push({schluessel:hSchluessel+(betragsCluster.length>1?"#"+i:""),eintraege:c,kartenAbo:istKarte,kartenErlaubt,semantisch});
           });
         }else{
-          finalGruppen.push({schluessel:hSchluessel,eintraege:ohneKennung,kartenAbo:istKarte,kartenErlaubt});
+          finalGruppen.push({schluessel:hSchluessel,eintraege:ohneKennung,kartenAbo:istKarte,kartenErlaubt,semantisch});
         }
       }
     });
@@ -716,11 +727,24 @@ function berechneKennzahlen(posten){
 function zyklusPasst(tage){
   return(tage>=23&&tage<=37)||(tage>=75&&tage<=105)||(tage>=320&&tage<=410);
 }
-function klassifiziereTopf(k,kartenGesperrt){
+function klassifiziereTopf(k,kartenGesperrt,semantisch){
   if(k.n<3)return"C";
+  if(semantisch)return"A";
   if(!kartenGesperrt&&k.betragCV<=0.10&&k.abstandCV<=0.30&&zyklusPasst(k.medianAbstand))return"A";
   if(k.n>=6)return"B";
   return"UNSICHER";
+}
+const MONATE_DE=["januar","februar","märz","april","mai","juni","juli","august","september","oktober","november","dezember"];
+function bezugsmonat(notiz){
+  if(!notiz)return null;
+  const t=notiz.toLowerCase();
+  for(let i=0;i<MONATE_DE.length;i++){
+    const m=t.match(new RegExp(MONATE_DE[i]+"\\s*(\\d{4})"));
+    if(m)return{monat:i,jahr:+m[1]};
+  }
+  const mm=t.match(/\b(0[1-9]|1[0-2])[.\/](\d{4})\b/);
+  if(mm)return{monat:+mm[1]-1,jahr:+mm[2]};
+  return null;
 }
 function erkennePreisAenderung(k){
   if(k.n<4)return null;
@@ -740,7 +764,7 @@ function analysiereAbos(){
   const bekannt=new Set([...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name))]);
   const heute=Date.now();
   const fixkosten=[],beendet=[],gewohnheiten=[],preisfragen=[],unsicher=[];
-  gruppen.forEach(({schluessel,eintraege,kartenAbo,kartenErlaubt})=>{
+  gruppen.forEach(({schluessel,eintraege,kartenAbo,kartenErlaubt,semantisch})=>{
     if(eintraege.length<3)return;
     const{normal,jahresabrechnungen}=trenneJahresabrechnung(eintraege);
     if(normal.length<3)return;
@@ -750,11 +774,12 @@ function analysiereAbos(){
     if(regel&&regel.ignoriert)return;
     const k=berechneKennzahlen(normal);
     const gesperrt=kartenAbo&&!kartenErlaubt;
-    const topf=regel&&regel.topfUeberschreibung?regel.topfUeberschreibung:klassifiziereTopf(k,gesperrt);
+    const topf=regel&&regel.topfUeberschreibung?regel.topfUeberschreibung:klassifiziereTopf(k,gesperrt,semantisch);
     const betragAktuell=median(k.sortiert.slice(-Math.max(3,Math.ceil(k.n/2))).map(e=>e.betrag));
     const eintrag={id:"vs_"+schluessel,schluessel,name,betrag:Math.round(betragAktuell*100)/100,
       tag:new Date(k.letzteBuchung).getDate(),n:k.n,betragCV:k.betragCV,abstandCV:k.abstandCV,
-      medianAbstand:Math.round(k.medianAbstand),letzteBuchung:k.letzteBuchung,
+      medianAbstand:Math.round(k.medianAbstand),letzteBuchung:k.letzteBuchung,semantisch:!!semantisch,
+      bezugsmonat:bezugsmonat(k.sortiert[k.n-1].zweck||k.sortiert[k.n-1].notiz),
       jahresabrechnung:jahresabrechnungen.length?Math.round(median(jahresabrechnungen.map(j=>j.betrag))*100)/100:null};
     if(topf==="A"){
       const inaktivSchwelle=k.medianAbstand*2+7;
@@ -800,7 +825,18 @@ function parseCSV(text){
   const header=teilen(zeilen[headerIdx]).map(h=>h.toLowerCase());
   const erwartet=header.length;
   const rows=zeilen.slice(headerIdx+1).map(teilen).filter(r=>r.length===erwartet);
-  return{header,rows,rohHeader:zeilen[headerIdx],ersteDatenzeile:zeilen[headerIdx+1]||""};
+  let kontostand=null;
+  zeilen.forEach(z=>{
+    if(!/kontostand/i.test(z))return;
+    const teile=z.split(delim).map(t=>t.trim());
+    let betrag=null;
+    for(let j=teile.length-1;j>=0;j--){const v=parseBetragDE(teile[j]);if(!isNaN(v)&&/\d/.test(teile[j])){betrag=v;break}}
+    if(betrag==null)return;
+    const datumMatch=z.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
+    const datum=datumMatch?parseDatumDE(datumMatch[0]):null;
+    kontostand={betrag,datum};
+  });
+  return{header,rows,rohHeader:zeilen[headerIdx],ersteDatenzeile:zeilen[headerIdx+1]||"",kontostand};
 }
 function findSpalte(header,kandidaten){
   for(const k of kandidaten){const i=header.findIndex(h=>h.includes(k));if(i>=0)return i}
@@ -824,9 +860,10 @@ function parseDatumDE(s){
   if(iso){const[,j,mo,t]=iso;return new Date(+j,+mo-1,+t,12,0,0)}
   return null;
 }
+function klassifiziereEinnahme(betrag){return betrag>=800?"einkommen":"rueckfluss"}
 function csvEinlesen(){
   importFehler=null;
-  const{header,rows,headerFehler,vorschauZeilen,rohHeader,ersteDatenzeile}=parseCSV(importText);
+  const{header,rows,headerFehler,vorschauZeilen,rohHeader,ersteDatenzeile,kontostand}=parseCSV(importText);
   if(headerFehler||!header.length){
     importFehler={typ:"header",zeilen:vorschauZeilen||[]};render();return;
   }
@@ -840,10 +877,14 @@ function csvEinlesen(){
   }
   const geparst=rows.map(r=>{
     const partner=iPartner>=0?r[iPartner]:"",zweck=iText>=0?r[iText]:"";
-    return{datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),haendler:bereinigeHaendler(partner,zweck),umsatzart:iUmsatzart>=0?r[iUmsatzart]:""};
+    return{datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),haendler:bereinigeHaendler(partner,zweck),zweck:(zweck||"").trim(),umsatzart:iUmsatzart>=0?r[iUmsatzart]:""};
   }).filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag!==0);
   if(!geparst.length){
     importFehler={typ:"keineAusgaben",header,ersteDatenzeile:ersteDatenzeile||(rows[0]?rows[0].join(" | "):"")};render();return;
+  }
+  if(kontostand){
+    const datum=kontostand.datum||geparst.reduce((max,r)=>r.datum>max?r.datum:max,geparst[0].datum);
+    S.kontostand={betrag:kontostand.betrag,datum:datum.getTime()};sichern();
   }
   const vor30=new Date();vor30.setDate(vor30.getDate()-30);vor30.setHours(0,0,0,0);
   const imFenster=geparst.filter(r=>r.datum>=vor30);
@@ -853,8 +894,10 @@ function csvEinlesen(){
   importRows=nutze.map((r,i)=>{
     const istEinnahme=r.betrag>0;
     const dup=istDuplikat(r.datum,Math.abs(r.betrag),r.haendler);
-    return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),
-      kat:istEinnahme?null:autoKategorie(r.haendler),istEinnahme,umsatzart:r.umsatzart,drin:!dup,dup};
+    return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),zweck:r.zweck,
+      kat:istEinnahme?null:autoKategorie(r.haendler),istEinnahme,
+      einnahmeArt:istEinnahme?klassifiziereEinnahme(r.betrag):null,
+      umsatzart:r.umsatzart,drin:!dup,dup};
   });
   render();
 }
@@ -1087,7 +1130,10 @@ function importAnsicht(){
    <ul class="liste">${importRows.map(r=>`<li class="zeile">
     <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
     <span class="zeile-h">${esc(r.notiz||"—")}${r.istEinnahme?`<span class="flab" style="background:var(--gruen)">${L("einnahme")}</span>`:""}${r.dup?`<span class="flab warn">${L("moeglichesDuplikat")}</span>`:""}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
-    ${r.istEinnahme?"":`<select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
+    ${r.istEinnahme?`<select data-imp-einnahmeart="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
+     <option value="einkommen"${r.einnahmeArt==="einkommen"?" selected":""}>${L("einkommen")}</option>
+     <option value="rueckfluss"${r.einnahmeArt==="rueckfluss"?" selected":""}>${L("rueckfluss")}</option>
+    </select>`:`<select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
      ${KAT.map(k=>`<option value="${k.id}"${k.id===r.kat?" selected":""}>${kl(k.id)}</option>`).join("")}
     </select>`}
     <span class="wert"${r.istEinnahme?` style="color:var(--gruen)"`:""}">${r.istEinnahme?"+":""}${f2(r.betrag)}</span></li>`).join("")}</ul>
@@ -1096,6 +1142,8 @@ function importAnsicht(){
 }
 
 const datumKurz=ts=>{const d=new Date(ts);return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear()};
+const MONATSNAMEN={de:["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"],en:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]};
+const bezugsmonatLabel=bm=>bm?L("bezugsmonatHinweis")(MONATSNAMEN[lang][bm.monat],bm.jahr):"";
 
 function aboVorschlaegeAnsicht(){
   const a=aboAnalyse,n=a.fixkosten.filter(v=>v.drin).length;
@@ -1113,7 +1161,7 @@ function aboVorschlaegeAnsicht(){
    <p class="text">${L("aboErkanntText")(a.fixkosten.length)}</p>
    <ul class="liste">${a.fixkosten.map(v=>`<li class="zeile">
     <input type="checkbox" data-vs-check="${v.id}"${v.drin?" checked":""} style="flex:none;width:18px;height:18px">
-    <span class="zeile-h">${esc(v.name)}${v.verlauf?`<span class="flab">${L("seitAngepasst")(datumKurz(v.verlauf.seitTs),f2(v.verlauf.alterBetrag))}</span>`:""}<span class="zeile-n">${L("aboStats")(v.n,v.betragCV.toFixed(2),v.medianAbstand,v.abstandCV.toFixed(2))}${v.jahresabrechnung?" · "+L("jahresabrechnungHinweis")(f0(v.jahresabrechnung)):""}</span></span>
+    <span class="zeile-h">${esc(v.name)}${v.verlauf?`<span class="flab">${L("seitAngepasst")(datumKurz(v.verlauf.seitTs),f2(v.verlauf.alterBetrag))}</span>`:""}<span class="zeile-n">${v.semantisch?L("semantischErkannt"):L("aboStats")(v.n,v.betragCV.toFixed(2),v.medianAbstand,v.abstandCV.toFixed(2))}${v.jahresabrechnung?" · "+L("jahresabrechnungHinweis")(f0(v.jahresabrechnung)):""}${v.bezugsmonat?" · "+bezugsmonatLabel(v.bezugsmonat):""}</span></span>
     <span class="wert">${f0(v.betrag)} €</span>
     <button class="weg" data-vs-verwerfen="${v.id}" title="${L("keinAbo")}">×</button></li>`).join("")}</ul>
    <button class="primaer" id="vsBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${L("aboUebernehmen")(n)}</button>
@@ -1233,7 +1281,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{}};sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{},schulden:d.schulden||[],kontostand:d.kontostand||null};sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -1281,7 +1329,7 @@ function binden(){
 function bindenLoeschen(){
   const ja=document.getElementById("loeschenJa");
   if(ja)ja.onclick=()=>{
-    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{}};
+    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null};
     loeschenBestaetigen=false;sichern();tab="erfassen";render();toast(L("tAllesGeloescht"))};
   const ab=document.getElementById("loeschenAbbrechen");
   if(ab)ab.onclick=()=>{loeschenBestaetigen=false;render()};
@@ -1292,6 +1340,8 @@ function bindenImport(){
     const r=importRows.find(x=>x.id===c.dataset.impCheck);r.drin=e.target.checked;render()});
   document.querySelectorAll("[data-imp-kat]").forEach(s=>s.onchange=e=>{
     const r=importRows.find(x=>x.id===s.dataset.impKat);r.kat=e.target.value});
+  document.querySelectorAll("[data-imp-einnahmeart]").forEach(s=>s.onchange=e=>{
+    const r=importRows.find(x=>x.id===s.dataset.impEinnahmeart);r.einnahmeArt=e.target.value});
   const alle=document.getElementById("impAlleAnzeigen");
   if(alle)alle.onclick=()=>{
     importVersteckteAnzahl=0;
@@ -1299,13 +1349,16 @@ function bindenImport(){
       const istEinnahme=r.betrag>0;
       const dup=istDuplikat(r.datum,Math.abs(r.betrag),r.haendler);
       return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),
-        kat:istEinnahme?null:autoKategorie(r.haendler),istEinnahme,umsatzart:r.umsatzart,drin:!dup,dup};
+        kat:istEinnahme?null:autoKategorie(r.haendler),istEinnahme,
+        einnahmeArt:istEinnahme?klassifiziereEinnahme(r.betrag):null,
+        umsatzart:r.umsatzart,drin:!dup,dup};
     });
     render()};
   const ok=document.getElementById("impBestaetigen");
   if(ok)ok.onclick=()=>{
     const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),
-      betrag:r.betrag,kat:r.istEinnahme?null:r.kat,typ:r.istEinnahme?"einnahme":undefined,notiz:r.notiz,umsatzart:r.umsatzart}));
+      betrag:r.betrag,kat:r.istEinnahme?null:r.kat,typ:r.istEinnahme?"einnahme":undefined,
+      einnahmeArt:r.istEinnahme?r.einnahmeArt:undefined,notiz:r.notiz,zweck:r.zweck,umsatzart:r.umsatzart}));
     if(neue.length)S.marken.import=true;
     neue.forEach(r=>{if(r.notiz&&r.typ!=="einnahme")S.gelernt[normalisiere(r.notiz)]=r.kat});
     S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
