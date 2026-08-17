@@ -186,7 +186,7 @@ const MARKEN=[
  {id:"rueckwirkend",svg:`<svg ${SVGATTR}><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v5h5"/></svg>`},
  {id:"import",svg:`<svg ${SVGATTR}><path d="M12 4v11"/><path d="M7.5 11l4.5 4.5L16.5 11"/><path d="M4.5 18.5v2a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-2"/></svg>`}];
 
-const STD={w_lebensmittel:125,w_auswaerts:75,m_shopping:200,m_freizeit:60};
+const STD={w_lebensmittel:0,w_auswaerts:0,m_shopping:0,m_freizeit:0};
 
 const SEED=[];
 
@@ -248,6 +248,8 @@ const T={
   importText:n=>`${n} Buchungen erkannt und automatisch kategorisiert. Kategorie bei Bedarf ändern, Häkchen raus für Zeilen, die nicht rein sollen (z. B. Mieteingang, Umbuchung zwischen eigenen Konten).`,
   importBestaetigen:n=>`${n} Buchungen importieren`,abbrechen:"Abbrechen",
   sollLabel:"Soll heute",
+  keinBudgetGesetzt:"Noch kein Budget gesetzt — unter Budgets eintragen",
+  keinBudgetAberGebucht:i=>`${f0(i)} € gebucht, noch ohne Budget — unter Budgets eintragen`,
   tGebucht:"Gebucht",tExportiert:"Exportiert",tKopiert:"Kopiert",tGingNicht:"Ging nicht",
   tWiederhergestellt:"Wiederhergestellt",tTextNichtLesbar:"Text nicht lesbar",tSpeichernFehlgeschlagen:"Speichern fehlgeschlagen",
   tKeineZeilen:"Keine Zeilen gefunden",tSpalteNichtErkannt:"Datum- oder Betrag-Spalte nicht erkannt",
@@ -319,6 +321,8 @@ const T={
   importText:n=>`${n} transactions detected and auto-categorized. Change the category if needed, uncheck rows that shouldn't be included (e.g. rent income, transfers between your own accounts).`,
   importBestaetigen:n=>`Import ${n} transactions`,abbrechen:"Cancel",
   sollLabel:"Target today",
+  keinBudgetGesetzt:"No budget set yet — add one under Budgets",
+  keinBudgetAberGebucht:i=>`${f0(i)} € logged, no budget set yet — add one under Budgets`,
   tGebucht:"Logged",tExportiert:"Exported",tKopiert:"Copied",tGingNicht:"Didn't work",
   tWiederhergestellt:"Restored",tTextNichtLesbar:"Couldn't read that text",tSpeichernFehlgeschlagen:"Save failed",
   tKeineZeilen:"No rows found",tSpalteNichtErkannt:"Couldn't detect date or amount column",
@@ -552,6 +556,11 @@ function rechne(){
 
 /* ═══ Bausteine ════════════════════════════════════════════ */
 function topfHTML(t){
+  if(!t.budget){
+    return`<div class="topf"><div class="topf-kopf"><span class="topf-lab">${t.label}</span>
+     <span class="topf-zyk">${t.zykZeile}</span></div>
+     <div class="topf-fuss" style="margin-top:2px">${t.ist?L("keinBudgetAberGebucht")(t.ist):L("keinBudgetGesetzt")}</div></div>`;
+  }
   const rest=t.budget-t.ist,soll=t.budget?(t.budget/t.von)*t.pos:0,ueber=rest<0,vor=soll-t.ist;
   const sollPos=Math.min(100,t.budget?soll/t.budget*100:0),sollLabPos=Math.min(94,Math.max(6,sollPos));
   const pct=t.budget?t.ist/t.budget*100:0,warn=!ueber&&pct>=80;
