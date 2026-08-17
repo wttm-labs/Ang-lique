@@ -258,7 +258,7 @@ const T={
   proMonatAm:t=>`monatlich, etwa am ${t}.`,
   aboUebernehmen:n=>`${n} übernehmen`,tAboUebernommen:n=>`${n} Abos übernommen`,
   allesLoeschen:"Alles löschen",
-  allesLoeschenConfirm:"Wirklich alle Buchungen löschen? Das kann nicht rückgängig gemacht werden.",
+  allesLoeschenConfirm:"Wirklich ALLES löschen — Buchungen, Budgets, Abos und gelernte Kategorien? Das kann nicht rückgängig gemacht werden, z. B. bevor du das Gerät oder den Link weitergibst.",
   tAllesGeloescht:"Alles gelöscht"
  },
  en:{
@@ -325,7 +325,7 @@ const T={
   proMonatAm:t=>`monthly, around day ${t}`,
   aboUebernehmen:n=>`Add ${n}`,tAboUebernommen:n=>`${n} subscriptions added`,
   allesLoeschen:"Delete everything",
-  allesLoeschenConfirm:"Really delete all entries? This can't be undone.",
+  allesLoeschenConfirm:"Really delete EVERYTHING — entries, budgets, subscriptions and learned categories? This can't be undone, e.g. before handing off the device or link.",
   tAllesGeloescht:"Everything deleted"
  }};
 
@@ -790,7 +790,10 @@ function binden(){
     else toast(L("tKeineAbosErkannt"))};
   const al=document.getElementById("allesLoeschen");
   if(al)al.onclick=()=>{
-    if(confirm(L("allesLoeschenConfirm"))){S.eintraege=[];S.marken={};sichern();render();toast(L("tAllesGeloescht"))}};
+    if(confirm(L("allesLoeschenConfirm"))){
+      S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{}};
+      sichern();render();toast(L("tAllesGeloescht"))
+    }};
 }
 
 function bindenImport(){
