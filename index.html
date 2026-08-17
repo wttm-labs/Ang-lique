@@ -161,8 +161,8 @@ const KATLABEL={
  en:{lebensmittel:"Groceries",auswaerts:"Eating out & coffee",shopping:"Shopping",freizeit:"Leisure & events",
   geschenke:"Gifts & occasions",haushalt:"Drugstore & household",transport:"Transport",gesundheit:"Health",sonstiges:"Other"}};
 
-/* Beispielwerte — bitte über die App durch eigene Fixkosten ersetzen */
-const FIX=[
+/* Beispielwerte — Startbelegung für neue Installationen, danach in S.fix gespeichert und über "Alles löschen" entfernbar */
+const FIX_STANDARD=[
  {key:"miete",betrag:900,typ:"monat",tag:1},
  {key:"handy",betrag:40,typ:"monat",tag:2},
  {key:"strom",betrag:45,typ:"monat",tag:1},
@@ -388,7 +388,7 @@ function berechneErfolge(){
     monatgruen:monatGruen,rueckwirkend:!!S.marken.rueckwirkend,import:!!S.marken.import};
 }
 
-let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[]},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
 let importText="",importRows=null;
 let aboVorschlaege=null;
 let settingsOffen=false;
@@ -408,13 +408,14 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
     const d=new Date(heute);d.setDate(d.getDate()+s.tsRel);
     return{id:"seed"+i,ts:d.getTime(),betrag:s.betrag,kat:s.kat,notiz:s.notiz}
   }).sort((a,b)=>b.ts-a.ts);
+  S.fix=[...FIX_STANDARD];
   sichern();
 }
 function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}catch(e){toast(L("tSpeichernFehlgeschlagen"))}}
@@ -447,7 +448,7 @@ function erkenneAbos(){
     if(!key)return;
     (gruppen[key]=gruppen[key]||[]).push(e);
   });
-  const bekannt=new Set([...FIX.map(f=>normalisiere(fl(f.key))),...S.abos.map(a=>normalisiere(a.name))]);
+  const bekannt=new Set([...S.fix.map(f=>normalisiere(fl(f.key))),...S.abos.map(a=>normalisiere(a.name))]);
   const vorschlaege=[];
   Object.entries(gruppen).forEach(([key,posten])=>{
     if(posten.length<3||bekannt.has(key))return;
@@ -525,7 +526,7 @@ function rechne(){
    {id:"m_shopping",label:kl("shopping"),zykZeile:L("zykMonat")(MONL[lang][now.getMonth()],tag,tage),ist:s(inM,"shopping"),budget:S.budget.m_shopping,pos:tag,von:tage},
    {id:"m_freizeit",label:kl("freizeit"),zykZeile:L("zykMonat")(MONL[lang][now.getMonth()],tag,tage),ist:s(inM,"freizeit"),budget:S.budget.m_freizeit,pos:tag,von:tage}];
   const h0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  const faellig=[...[...FIX,...S.abos].map(f=>({...f,wann:naechste(f,now)})).filter(f=>f.wann),
+  const faellig=[...[...S.fix,...S.abos].map(f=>({...f,wann:naechste(f,now)})).filter(f=>f.wann),
     ...EINMAL.map(e=>({...e,wann:new Date(e.datum),einmalig:1})).filter(e=>e.wann>=h0)].sort((a,b)=>a.wann-b.wann);
   return{tag,tage,wtag,wom,womT,toepfe,faellig,bald:faellig.filter(f=>tdiff(f.wann,h0)<=7),h0,
     monatGesamt:s(inM),proKat:KAT.map(k=>({...k,summe:s(inM,k.id)})),anzahl:inM.length};
@@ -570,7 +571,7 @@ function erfassen(z){
 }
 
 function faellig(z){
-  const alleFix=[...FIX,...S.abos];
+  const alleFix=[...S.fix,...S.abos];
   const sm=alleFix.filter(f=>f.typ==="monat").reduce((s,f)=>s+f.betrag,0);
   return`<div class="karte dunkel"><div class="topf-lab">${L("festeAbgaenge")}</div>
    <div class="gross">${f0(sm)} €</div>
@@ -770,7 +771,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{}};sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[]};sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -791,7 +792,7 @@ function binden(){
   const al=document.getElementById("allesLoeschen");
   if(al)al.onclick=()=>{
     if(confirm(L("allesLoeschenConfirm"))){
-      S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{}};
+      S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[]};
       sichern();render();toast(L("tAllesGeloescht"))
     }};
 }
