@@ -262,8 +262,19 @@ const T={
   aeltereAusgeblendet:n=>`${n} ältere Buchungen ausgeblendet (nur letzte 30 Tage gezeigt).`,alleAnzeigen:"Alle anzeigen",
   wiederkehrendeErkennen:"Wiederkehrende erkennen",tKeineAbosErkannt:"Keine wiederkehrenden Zahlungen gefunden",
   aboErkannt:"Wiederkehrende Zahlungen erkannt",
-  aboErkanntText:n=>`${n} mögliche Abos gefunden — anhand von mindestens drei ähnlichen Buchungen über verschiedene Monate. Prüfen und übernehmen.`,
+  aboErkanntText:n=>`${n} als Fixkosten erkannt — regelmäßiger Betrag, regelmäßiger Abstand. Prüfen und übernehmen.`,
   proMonatAm:t=>`monatlich, etwa am ${t}.`,
+  aboStats:(n,cv1,tage,cv2)=>`${n}× · Betrags-CV ${cv1} · alle ~${tage} Tage · Abstands-CV ${cv2}`,
+  keinAbo:"Kein Abo — nicht mehr vorschlagen",
+  seitAngepasst:(d,alt)=>`seit ${d} angepasst, davor ${alt} €`,
+  beendetHeading:"Vermutlich beendet",
+  beendetText:"Lange nicht mehr gebucht, deshalb nicht mehr als aktiv geführt.",
+  letzteBuchungAm:d=>`letzte Buchung ${d}`,
+  preisfrageHeading:"Preisänderung erkannt",
+  preisfrageText:(name,alt,neu)=>`${name}: bisher ${alt} €, jetzt ${neu} €. Preisänderung, Tarifwechsel oder separate neue Zahlung?`,
+  preisPreisaenderung:"Preisänderung — Abo fortführen",preisNeuesAbo:"Neues, separates Abo",preisEinmalig:"Einmalig, ignorieren",
+  parallelHeading:"Mehrere ähnliche Abos gleichzeitig",
+  parallelText:(n,kat,namen,summe)=>`${n}× in "${kat}" gleichzeitig aktiv: ${namen} — zusammen ${summe} €/Monat.`,
   aboUebernehmen:n=>`${n} übernehmen`,tAboUebernommen:n=>`${n} Abos übernommen`,
   allesLoeschen:"Alles löschen",jaAllesLoeschen:"Ja, alles löschen",
   allesLoeschenConfirm:"Wirklich ALLES löschen — Buchungen, Budgets, Abos und gelernte Kategorien? Das kann nicht rückgängig gemacht werden, z. B. bevor du das Gerät oder den Link weitergibst.",
@@ -340,8 +351,19 @@ const T={
   aeltereAusgeblendet:n=>`${n} older entries hidden (showing only the last 30 days).`,alleAnzeigen:"Show all",
   wiederkehrendeErkennen:"Detect recurring",tKeineAbosErkannt:"No recurring payments found",
   aboErkannt:"Recurring payments detected",
-  aboErkanntText:n=>`Found ${n} possible subscriptions — based on at least three similar entries across different months. Review and confirm.`,
+  aboErkanntText:n=>`Detected ${n} fixed costs — regular amount, regular interval. Review and confirm.`,
   proMonatAm:t=>`monthly, around day ${t}`,
+  aboStats:(n,cv1,tage,cv2)=>`${n}× · amount CV ${cv1} · every ~${tage} days · interval CV ${cv2}`,
+  keinAbo:"Not a subscription — stop suggesting",
+  seitAngepasst:(d,alt)=>`adjusted since ${d}, was ${alt} €`,
+  beendetHeading:"Probably ended",
+  beendetText:"Not logged in a while, so no longer treated as active.",
+  letzteBuchungAm:d=>`last entry ${d}`,
+  preisfrageHeading:"Price change detected",
+  preisfrageText:(name,alt,neu)=>`${name}: was ${alt} €, now ${neu} €. Price change, plan switch, or a separate one-off payment?`,
+  preisPreisaenderung:"Price change — keep as one subscription",preisNeuesAbo:"New, separate subscription",preisEinmalig:"One-off, ignore",
+  parallelHeading:"Several similar subscriptions at once",
+  parallelText:(n,kat,namen,summe)=>`${n}× active at once in "${kat}": ${namen} — ${summe} €/month combined.`,
   aboUebernehmen:n=>`Add ${n}`,tAboUebernommen:n=>`${n} subscriptions added`,
   allesLoeschen:"Delete everything",jaAllesLoeschen:"Yes, delete everything",
   allesLoeschenConfirm:"Really delete EVERYTHING — entries, budgets, subscriptions and learned categories? This can't be undone, e.g. before handing off the device or link.",
@@ -419,9 +441,9 @@ function referenzWert(katId){
   return werte.length?werte[Math.floor(werte.length/2)]:null;
 }
 
-let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0;
-let aboVorschlaege=null;
+let aboAnalyse=null;
 let loeschenBestaetigen=false;
 let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
@@ -440,7 +462,7 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
@@ -459,7 +481,7 @@ const AUTOKAT=[
  [/apotheke|\barzt\b|zahnarzt|physio/i,"gesundheit"],
  [/restaurant|café|\bcafe\b|kaffee|bäckerei|baecker|der beck|brezen kolb|roesttrommel|röstrommel|imbiss|lieferando|mcdonald|burger king|\bkfc\b|pizza|döner|doener/i,"auswaerts"],
  [/zalando|amazon|\bh&m\b|\bhm\b|zara|mediamarkt|saturn/i,"shopping"],
- [/kino|spotify|netflix|disney|fitness|crossfit|fit\s?one/i,"freizeit"],
+ [/kino|spotify|netflix|disney|fitness|crossfit|fit\s?one|\bfitx\b|audible/i,"freizeit"],
  [/geschenk/i,"geschenke"]];
 function autoKategorie(text){
   const norm=normalisiere(text);
@@ -491,27 +513,134 @@ function istDuplikat(datum,betrag,notiz){
   const notizNorm=normalisiere(notiz);
   return S.eintraege.some(e=>e.ts>=tagStart&&e.ts<=tagEnd&&Math.abs(e.betrag-betrag)<0.01&&normalisiere(e.notiz)===notizNorm);
 }
-function erkenneAbos(){
+/* ═══ Abo-Erkennung ═══════════════════════════════════════ */
+function levenshtein(a,b){
+  const m=a.length,n=b.length,d=[];
+  for(let i=0;i<=m;i++)d.push([i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++)d[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
+  return d[m][n];
+}
+const HAENDLER_PREFIXE=["REWE","EDEKA","ALDI","LIDL","NETTO","KAUFLAND","TEGUT","DENNS","DM","ROSSMANN","MÜLLER",
+ "VAG","FITX","MCDONALD","BURGER KING","STARBUCKS","NETFLIX","SPOTIFY","AUDIBLE","CROSSFIT","FIT ONE","FITONE"];
+function haendlerBasis(name){
+  let s=(name||"").toUpperCase();
+  s=s.replace(/\bS\.?A\.?R\.?L\.?\b|\bET CIE\b|\bS\.?C\.?A\.?\b/g," ");
+  s=s.replace(/\b(GMBH|MBH|LLC|AG|KG|OHG|UG|INC|LTD|CO|SARL|EV|E V)\b\.?/g," ");
+  s=s.replace(/\bFIL\.?\s*[\d\/\-]+/g," ");
+  s=s.replace(/[.\-_\/]+/g," ");
+  s=s.replace(/\b\d+\b/g," ");
+  s=s.replace(/\s+/g," ").trim();
+  return s;
+}
+function haendlerSchluessel(name){
+  const basis=haendlerBasis(name);
+  for(const prefix of HAENDLER_PREFIXE)if(basis.startsWith(prefix))return prefix;
+  return basis.slice(0,12);
+}
+function clustereHaendler(eintraege){
+  const schluesselVon=new Map(),alleKeys=[];
+  eintraege.forEach(e=>{
+    const k=haendlerSchluessel(e.notiz);
+    schluesselVon.set(e,k);
+    if(!alleKeys.includes(k))alleKeys.push(k);
+  });
+  const parent={};
+  alleKeys.forEach(k=>parent[k]=k);
+  const find=x=>{while(parent[x]!==x)x=parent[x];return x};
+  for(let i=0;i<alleKeys.length;i++)for(let j=i+1;j<alleKeys.length;j++){
+    if(levenshtein(alleKeys[i],alleKeys[j])<=2){const ra=find(alleKeys[i]),rb=find(alleKeys[j]);if(ra!==rb)parent[ra]=rb}
+  }
   const gruppen={};
-  S.eintraege.forEach(e=>{
-    if(e.typ==="einnahme")return;
-    const key=normalisiere(e.notiz);
-    if(!key)return;
-    (gruppen[key]=gruppen[key]||[]).push(e);
+  eintraege.forEach(e=>{
+    const k=find(schluesselVon.get(e));
+    (gruppen[k]=gruppen[k]||[]).push(e);
   });
+  return gruppen;
+}
+function anzeigename(posten){
+  const zaehlung={};
+  posten.forEach(e=>{const t=(e.notiz||"").trim();zaehlung[t]=(zaehlung[t]||0)+1});
+  return Object.entries(zaehlung).sort((a,b)=>b[1]-a[1])[0][0];
+}
+function median(arr){const s=[...arr].sort((a,b)=>a-b);return s.length?s[Math.floor(s.length/2)]:0}
+function berechneKennzahlen(posten){
+  const sortiert=[...posten].sort((a,b)=>a.ts-b.ts);
+  const betraege=sortiert.map(e=>e.betrag),n=betraege.length;
+  const betragMittel=betraege.reduce((a,b)=>a+b,0)/n;
+  const betragVar=betraege.reduce((a,b)=>a+(b-betragMittel)**2,0)/n;
+  const betragCV=betragMittel?Math.sqrt(betragVar)/betragMittel:0;
+  const abstaende=[];
+  for(let i=1;i<sortiert.length;i++)abstaende.push((sortiert[i].ts-sortiert[i-1].ts)/864e5);
+  let abstandCV=0,medianAbstand=0;
+  if(abstaende.length){
+    const abstandMittel=abstaende.reduce((a,b)=>a+b,0)/abstaende.length;
+    const abstandVar=abstaende.reduce((a,b)=>a+(b-abstandMittel)**2,0)/abstaende.length;
+    abstandCV=abstandMittel?Math.sqrt(abstandVar)/abstandMittel:0;
+    medianAbstand=median(abstaende);
+  }
+  return{n,betragMittel,betragCV,abstandCV,medianAbstand,letzteBuchung:sortiert[n-1].ts,ersteBuchung:sortiert[0].ts,sortiert,betraege};
+}
+function zyklusPasst(tage){
+  return(tage>=24&&tage<=36)||(tage>=78&&tage<=102)||(tage>=335&&tage<=395);
+}
+function klassifiziereTopf(k){
+  if(k.n<3)return"C";
+  if(k.betragCV<=0.05&&k.abstandCV<=0.25&&zyklusPasst(k.medianAbstand))return"A";
+  if(k.n>=6)return"B";
+  return"C";
+}
+function erkennePreisAenderung(k){
+  if(k.n<4)return null;
+  const letzter=k.betraege[k.n-1];
+  const frueher=median(k.betraege.slice(0,-1));
+  if(!frueher)return null;
+  const diff=Math.abs(letzter-frueher)/frueher;
+  if(diff<=0.02)return null;
+  let neuAnzahl=0;
+  for(let i=k.n-1;i>=0;i--){if(Math.abs(k.betraege[i]-letzter)/letzter<0.01)neuAnzahl++;else break}
+  if(!neuAnzahl)return null;
+  return{alterBetrag:frueher,neuerBetrag:letzter,seitTs:k.sortiert[k.n-neuAnzahl].ts};
+}
+function analysiereAbos(){
+  const posten=S.eintraege.filter(e=>e.typ!=="einnahme"&&(e.notiz||"").trim());
+  const gruppen=clustereHaendler(posten);
   const bekannt=new Set([...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name))]);
-  const vorschlaege=[];
-  Object.entries(gruppen).forEach(([key,posten])=>{
-    if(posten.length<3||bekannt.has(key))return;
-    const betraege=posten.map(e=>e.betrag).sort((a,b)=>a-b);
-    const median=betraege[Math.floor(betraege.length/2)];
-    if(betraege[betraege.length-1]-betraege[0]>median*0.2+2)return;
-    const monate=new Set(posten.map(e=>mk(new Date(e.ts))));
-    if(monate.size<3)return;
-    const tage=posten.map(e=>new Date(e.ts).getDate()).sort((a,b)=>a-b);
-    vorschlaege.push({id:"vs_"+key,name:posten[0].notiz.trim(),betrag:Math.round(median*100)/100,tag:tage[Math.floor(tage.length/2)],anzahl:posten.length});
+  const heute=Date.now();
+  const fixkosten=[],beendet=[],gewohnheiten=[],preisfragen=[];
+  Object.entries(gruppen).forEach(([schluessel,eintraege])=>{
+    if(eintraege.length<3)return;
+    const name=anzeigename(eintraege);
+    if(bekannt.has(normalisiere(name)))return;
+    const regel=(S.abRegeln||{})[schluessel];
+    if(regel&&regel.ignoriert)return;
+    const k=berechneKennzahlen(eintraege);
+    const topf=regel&&regel.topfUeberschreibung?regel.topfUeberschreibung:klassifiziereTopf(k);
+    const eintrag={id:"vs_"+schluessel,schluessel,name,betrag:Math.round(k.betragMittel*100)/100,
+      tag:new Date(k.letzteBuchung).getDate(),n:k.n,betragCV:k.betragCV,abstandCV:k.abstandCV,
+      medianAbstand:Math.round(k.medianAbstand),letzteBuchung:k.letzteBuchung};
+    if(topf==="A"){
+      const inaktivSchwelle=k.medianAbstand*2+7;
+      const tageSeitLetzter=(heute-k.letzteBuchung)/864e5;
+      if(tageSeitLetzter>inaktivSchwelle){beendet.push(eintrag);return}
+      if(!regel||!regel.preisEntscheidung){
+        const pa=erkennePreisAenderung(k);
+        if(pa){preisfragen.push({...eintrag,...pa});return}
+      }else if(regel.preisEntscheidung.aktion==="preisaenderung"){
+        eintrag.betrag=Math.round(regel.preisEntscheidung.neuerBetrag*100)/100;
+        eintrag.verlauf=regel.preisEntscheidung;
+      }
+      fixkosten.push(eintrag);
+    }else if(topf==="B"&&k.n>=6){
+      gewohnheiten.push(eintrag);
+    }
   });
-  return vorschlaege;
+  const proKategorie={};
+  fixkosten.forEach(f=>{const kat=autoKategorie(f.name);(proKategorie[kat]=proKategorie[kat]||[]).push(f)});
+  const parallel=Object.entries(proKategorie).filter(([,v])=>v.length>=2)
+    .map(([kat,v])=>({kat,anzahl:v.length,summe:v.reduce((s,f)=>s+f.betrag,0),namen:v.map(f=>f.name)}));
+  return{fixkosten,beendet,gewohnheiten,preisfragen,parallel};
 }
 const DATUM_KEYWORDS=["buchungstag","wert","valuta","datum"];
 const BETRAG_KEYWORDS=["betrag","umsatz","soll","haben","amount"];
@@ -800,16 +929,32 @@ function importAnsicht(){
    <button class="sekundaer" id="impAbbrechen">${L("abbrechen")}</button></div>`;
 }
 
+const datumKurz=ts=>{const d=new Date(ts);return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear()};
+
 function aboVorschlaegeAnsicht(){
-  const n=aboVorschlaege.filter(v=>v.drin).length;
-  return`<div class="karte"><h2>${L("aboErkannt")}</h2>
-   <p class="text">${L("aboErkanntText")(aboVorschlaege.length)}</p>
-   <ul class="liste">${aboVorschlaege.map(v=>`<li class="zeile">
+  const a=aboAnalyse,n=a.fixkosten.filter(v=>v.drin).length;
+  return`${a.preisfragen.length?`<div class="karte"><h2>${L("preisfrageHeading")}</h2>
+   ${a.preisfragen.map(p=>`<div class="vert">
+    <p class="text" style="margin-bottom:8px">${L("preisfrageText")(esc(p.name),f2(p.alterBetrag),f2(p.neuerBetrag))}</p>
+    <div class="chips">
+     <button class="chip" data-preis-aktion="preisaenderung" data-preis-id="${p.id}">${L("preisPreisaenderung")}</button>
+     <button class="chip" data-preis-aktion="neu" data-preis-id="${p.id}">${L("preisNeuesAbo")}</button>
+     <button class="chip" data-preis-aktion="einmalig" data-preis-id="${p.id}">${L("preisEinmalig")}</button>
+    </div></div>`).join("")}</div>`:""}
+  ${a.parallel.length?`<div class="karte"><h2>${L("parallelHeading")}</h2>
+   ${a.parallel.map(p=>`<p class="text">${L("parallelText")(p.anzahl,kl(p.kat),p.namen.map(esc).join(", "),f0(p.summe))}</p>`).join("")}</div>`:""}
+  <div class="karte"><h2>${L("aboErkannt")}</h2>
+   <p class="text">${L("aboErkanntText")(a.fixkosten.length)}</p>
+   <ul class="liste">${a.fixkosten.map(v=>`<li class="zeile">
     <input type="checkbox" data-vs-check="${v.id}"${v.drin?" checked":""} style="flex:none;width:18px;height:18px">
-    <span class="zeile-h">${esc(v.name)}<span class="zeile-n">${L("proMonatAm")(v.tag)} · ${v.anzahl}×</span></span>
-    <span class="wert">${f0(v.betrag)} €</span></li>`).join("")}</ul>
+    <span class="zeile-h">${esc(v.name)}${v.verlauf?`<span class="flab">${L("seitAngepasst")(datumKurz(v.verlauf.seitTs),f2(v.verlauf.alterBetrag))}</span>`:""}<span class="zeile-n">${L("aboStats")(v.n,v.betragCV.toFixed(2),v.medianAbstand,v.abstandCV.toFixed(2))}</span></span>
+    <span class="wert">${f0(v.betrag)} €</span>
+    <button class="weg" data-vs-verwerfen="${v.id}" title="${L("keinAbo")}">×</button></li>`).join("")}</ul>
    <button class="primaer" id="vsBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${L("aboUebernehmen")(n)}</button>
-   <button class="sekundaer" id="vsAbbrechen">${L("abbrechen")}</button></div>`;
+   <button class="sekundaer" id="vsAbbrechen">${L("abbrechen")}</button></div>
+  ${a.beendet.length?`<div class="karte"><h2>${L("beendetHeading")}</h2>
+   <p class="text">${L("beendetText")}</p>
+   ${a.beendet.map(v=>`<div class="reihe"><span>${esc(v.name)}</span><span class="finfo">${L("letzteBuchungAm")(datumKurz(v.letzteBuchung))}</span></div>`).join("")}</div>`:""}`;
 }
 
 function loeschenAnsicht(){
@@ -824,7 +969,7 @@ function render(){
   document.documentElement.lang=lang;
   const app=document.getElementById("app");
   if(importRows){app.innerHTML=importAnsicht();document.getElementById("nav").innerHTML="";bindenImport();return}
-  if(aboVorschlaege){app.innerHTML=aboVorschlaegeAnsicht();document.getElementById("nav").innerHTML="";bindenAboVorschlaege();return}
+  if(aboAnalyse){app.innerHTML=aboVorschlaegeAnsicht();document.getElementById("nav").innerHTML="";bindenAboVorschlaege();return}
   if(loeschenBestaetigen){app.innerHTML=loeschenAnsicht();document.getElementById("nav").innerHTML="";bindenLoeschen();return}
   const z=rechne();
   const bald=z.bald.length?`<div class="bald"><div class="bald-lab">${L("baldFaellig")}</div>
@@ -899,7 +1044,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{}};sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{}};sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -919,8 +1064,8 @@ function binden(){
     liesAls("UTF-8","ISO-8859-1")};
   const ae=document.getElementById("aboErkennen");
   if(ae)ae.onclick=()=>{
-    const v=erkenneAbos();
-    if(v.length){aboVorschlaege=v.map(x=>({...x,drin:true}));render()}
+    const a=analysiereAbos();a.fixkosten.forEach(v=>v.drin=true);
+    if(a.fixkosten.length||a.beendet.length||a.preisfragen.length){aboAnalyse=a;render()}
     else toast(L("tKeineAbosErkannt"))};
   const al=document.getElementById("allesLoeschen");
   if(al)al.onclick=()=>{loeschenBestaetigen=true;render()};
@@ -929,7 +1074,7 @@ function binden(){
 function bindenLoeschen(){
   const ja=document.getElementById("loeschenJa");
   if(ja)ja.onclick=()=>{
-    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{}};
+    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{}};
     loeschenBestaetigen=false;sichern();tab="erfassen";render();toast(L("tAllesGeloescht"))};
   const ab=document.getElementById("loeschenAbbrechen");
   if(ab)ab.onclick=()=>{loeschenBestaetigen=false;render()};
@@ -955,8 +1100,8 @@ function bindenImport(){
     neue.forEach(r=>{if(r.notiz)S.gelernt[normalisiere(r.notiz)]=r.kat});
     S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
     sichern();const n=neue.length;importRows=null;importText="";
-    const vorschlaege=erkenneAbos();
-    if(vorschlaege.length){aboVorschlaege=vorschlaege.map(v=>({...v,drin:true}))}
+    const a=analysiereAbos();a.fixkosten.forEach(v=>v.drin=true);
+    if(a.fixkosten.length||a.beendet.length||a.preisfragen.length){aboAnalyse=a}
     else tab="referenz";
     render();toast(L("tImportiert")(n))};
   const ab=document.getElementById("impAbbrechen");
@@ -965,14 +1110,40 @@ function bindenImport(){
 
 function bindenAboVorschlaege(){
   document.querySelectorAll("[data-vs-check]").forEach(c=>c.onchange=e=>{
-    const v=aboVorschlaege.find(x=>x.id===c.dataset.vsCheck);v.drin=e.target.checked;render()});
+    const v=aboAnalyse.fixkosten.find(x=>x.id===c.dataset.vsCheck);v.drin=e.target.checked;render()});
+  document.querySelectorAll("[data-vs-verwerfen]").forEach(b=>b.onclick=()=>{
+    const v=aboAnalyse.fixkosten.find(x=>x.id===b.dataset.vsVerwerfen);
+    const drinVorher={};aboAnalyse.fixkosten.forEach(x=>drinVorher[x.schluessel]=x.drin);
+    S.abRegeln=S.abRegeln||{};S.abRegeln[v.schluessel]={ignoriert:true};sichern();
+    aboAnalyse=analysiereAbos();
+    aboAnalyse.fixkosten.forEach(x=>{x.drin=x.schluessel in drinVorher?drinVorher[x.schluessel]:true});
+    render()});
+  document.querySelectorAll("[data-preis-aktion]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.preisId,aktion=b.dataset.preisAktion;
+    const p=aboAnalyse.preisfragen.find(x=>x.id===id);
+    const drinVorher={};aboAnalyse.fixkosten.forEach(x=>drinVorher[x.schluessel]=x.drin);
+    S.abRegeln=S.abRegeln||{};
+    S.abRegeln[p.schluessel]={preisEntscheidung:aktion==="einmalig"?{aktion:"einmalig"}:{aktion,alterBetrag:p.alterBetrag,neuerBetrag:p.neuerBetrag,seitTs:p.seitTs}};
+    sichern();aboAnalyse=analysiereAbos();
+    aboAnalyse.fixkosten.forEach(x=>{x.drin=x.schluessel in drinVorher?drinVorher[x.schluessel]:true});
+    render()});
   const ok=document.getElementById("vsBestaetigen");
   if(ok)ok.onclick=()=>{
-    const neu=aboVorschlaege.filter(v=>v.drin).map(v=>({id:"abo"+Date.now()+Math.random().toString(36).slice(2,5),name:v.name,betrag:v.betrag,typ:"monat",tag:v.tag}));
+    const neu=aboAnalyse.fixkosten.filter(v=>v.drin).map(v=>{
+      const letzterMonat=new Date(v.letzteBuchung).getMonth()+1;
+      const mehrjaehrig=v.medianAbstand>150;
+      const quartal=v.medianAbstand>=78&&v.medianAbstand<=102;
+      if(mehrjaehrig||quartal){
+        const schrittweite=mehrjaehrig?12:3;
+        const monate=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>((m-letzterMonat)%schrittweite+schrittweite)%schrittweite===0);
+        return{id:"abo"+Date.now()+Math.random().toString(36).slice(2,5),name:v.name,betrag:v.betrag,typ:"quartal",monate,tag:v.tag,schluessel:v.schluessel};
+      }
+      return{id:"abo"+Date.now()+Math.random().toString(36).slice(2,5),name:v.name,betrag:v.betrag,typ:"monat",tag:v.tag,schluessel:v.schluessel};
+    });
     S.abos=S.abos.concat(neu);sichern();
-    const n=neu.length;aboVorschlaege=null;tab="faellig";render();toast(L("tAboUebernommen")(n))};
+    const n=neu.length;aboAnalyse=null;tab="faellig";render();toast(L("tAboUebernommen")(n))};
   const ab=document.getElementById("vsAbbrechen");
-  if(ab)ab.onclick=()=>{aboVorschlaege=null;tab="referenz";render()};
+  if(ab)ab.onclick=()=>{aboAnalyse=null;tab="referenz";render()};
 }
 
 themeAnwenden();
