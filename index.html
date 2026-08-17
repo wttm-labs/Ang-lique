@@ -205,10 +205,17 @@ const T={
   danachUeber:v=>`Danach ${f0(v)} € über dem Budget`,danachBleiben:v=>`Danach bleiben ${f0(v)} €`,
   buchen:"Buchen",zuletzt:"Zuletzt",ausgabe:"Ausgabe",
   festeAbgaenge:"Feste Abgänge pro Monat",ohneQuartal:"ohne Quartalszahlungen · aus den Kontoauszügen ermittelt",
-  deineAbos:"Deine Abos",monatlich:"monatlich",quartalsweise:"quartalsweise",endetAm:d=>`endet ${d}`,
+  deineAbos:"Deine Abos",monatlich:"monatlich",quartalsweise:"quartalsweise",jaehrlich:"jährlich",endetAm:d=>`endet ${d}`,
+  aboManuellHeading:"Abo manuell anlegen",
+  aboManuellText:"Für Jahresabos wie Amazon Prime, die im Zeitraum nur einmal vorkommen und die Statistik nicht finden kann.",
+  aboName:"Name, z. B. Amazon Prime",aboBetragPlatzh:"Betrag in €",hinzufuegen:"Hinzufügen",
+  tAboHinzugefuegt:"Abo hinzugefügt",
+  budgetVorschlagText:(wert,monate)=>`Vorschlag ${wert} € — Median aus ${monate}`,
   alsNaechstesFaellig:"Als Nächstes fällig",einmalig:"einmalig",
   inTagen:n=>`in ${n} Tagen`,inT:n=>`in ${n} T`,
   deinSchnitt:"Dein Schnitt",nochKeineDaten:"noch keine Daten",
+  keineBuchungenDiesenMonat:"Diesen Monat noch nichts in dieser Kategorie gebucht.",
+  tKategorieGemerkt:"Kategorie geändert — künftige Buchungen von diesem Händler merken sich das.",
   saldoHeading:"Saldo diesen Monat",
   saldoText:"Einnahmen minus Ausgaben — für Geld, das unerwartet reinkommt, buche es oben als Einnahme statt als Ausgabe.",
   einnahmenMonat:"Einnahmen",ausgabenMonat:"Ausgaben",saldoMonat:"Bleibt",
@@ -275,6 +282,10 @@ const T={
   preisPreisaenderung:"Preisänderung — Abo fortführen",preisNeuesAbo:"Neues, separates Abo",preisEinmalig:"Einmalig, ignorieren",
   parallelHeading:"Mehrere ähnliche Abos gleichzeitig",
   parallelText:(n,kat,namen,summe)=>`${n}× in "${kat}" gleichzeitig aktiv: ${namen} — zusammen ${summe} €/Monat.`,
+  jahresabrechnungHinweis:b=>`zusätzlich Jahresabrechnung ~${b} € nicht mitgerechnet`,
+  unsicherHeading:"Wahrscheinlich wiederkehrend, unregelmäßig",
+  unsicherText:"Kommt öfter vor, aber Betrag oder Abstand schwanken zu stark für eine automatische Einstufung. Selbst entscheiden:",
+  unsicherJa:"Ja, wiederkehrend",unsicherNein:"Nein, kein Muster",
   aboUebernehmen:n=>`${n} übernehmen`,tAboUebernommen:n=>`${n} Abos übernommen`,
   allesLoeschen:"Alles löschen",jaAllesLoeschen:"Ja, alles löschen",
   allesLoeschenConfirm:"Wirklich ALLES löschen — Buchungen, Budgets, Abos und gelernte Kategorien? Das kann nicht rückgängig gemacht werden, z. B. bevor du das Gerät oder den Link weitergibst.",
@@ -294,10 +305,17 @@ const T={
   danachUeber:v=>`${f0(v)} € over budget after this`,danachBleiben:v=>`${f0(v)} € left after this`,
   buchen:"Add",zuletzt:"Recent",ausgabe:"Expense",
   festeAbgaenge:"Fixed costs per month",ohneQuartal:"excluding quarterly payments · based on your statements",
-  deineAbos:"Your subscriptions",monatlich:"monthly",quartalsweise:"quarterly",endetAm:d=>`ends ${d}`,
+  deineAbos:"Your subscriptions",monatlich:"monthly",quartalsweise:"quarterly",jaehrlich:"yearly",endetAm:d=>`ends ${d}`,
+  aboManuellHeading:"Add subscription manually",
+  aboManuellText:"For annual subscriptions like Amazon Prime that only occur once in the data and the statistics can't find.",
+  aboName:"Name, e.g. Amazon Prime",aboBetragPlatzh:"Amount in €",hinzufuegen:"Add",
+  tAboHinzugefuegt:"Subscription added",
+  budgetVorschlagText:(wert,monate)=>`Suggestion ${wert} € — median from ${monate}`,
   alsNaechstesFaellig:"Coming up",einmalig:"one-time",
   inTagen:n=>`in ${n} days`,inT:n=>`in ${n}d`,
   deinSchnitt:"Your average",nochKeineDaten:"no data yet",
+  keineBuchungenDiesenMonat:"Nothing logged in this category this month yet.",
+  tKategorieGemerkt:"Category changed — future entries from this merchant will use it automatically.",
   saldoHeading:"Balance this month",
   saldoText:"Income minus expenses — for money that comes in unexpectedly, log it above as income instead of an expense.",
   einnahmenMonat:"Income",ausgabenMonat:"Expenses",saldoMonat:"Left over",
@@ -364,6 +382,10 @@ const T={
   preisPreisaenderung:"Price change — keep as one subscription",preisNeuesAbo:"New, separate subscription",preisEinmalig:"One-off, ignore",
   parallelHeading:"Several similar subscriptions at once",
   parallelText:(n,kat,namen,summe)=>`${n}× active at once in "${kat}": ${namen} — ${summe} €/month combined.`,
+  jahresabrechnungHinweis:b=>`plus ~${b} € annual bill excluded from the average`,
+  unsicherHeading:"Probably recurring, but irregular",
+  unsicherText:"Happens repeatedly, but amount or timing vary too much for an automatic call. Decide yourself:",
+  unsicherJa:"Yes, recurring",unsicherNein:"No, no pattern",
   aboUebernehmen:n=>`Add ${n}`,tAboUebernommen:n=>`${n} subscriptions added`,
   allesLoeschen:"Delete everything",jaAllesLoeschen:"Yes, delete everything",
   allesLoeschenConfirm:"Really delete EVERYTHING — entries, budgets, subscriptions and learned categories? This can't be undone, e.g. before handing off the device or link.",
@@ -440,9 +462,24 @@ function referenzWert(katId){
   const werte=Object.values(monate).sort((a,b)=>a-b);
   return werte.length?werte[Math.floor(werte.length/2)]:null;
 }
+function budgetVorschlag(katId){
+  const heute=new Date(),aktMonat=mk(heute),monatsSummen={};
+  S.eintraege.filter(e=>e.typ!=="einnahme"&&e.kat===katId).forEach(e=>{
+    const m=mk(new Date(e.ts));
+    if(m===aktMonat)return;
+    monatsSummen[m]=(monatsSummen[m]||0)+e.betrag;
+  });
+  const monate=Object.keys(monatsSummen).sort().slice(-3);
+  if(!monate.length)return null;
+  const werte=monate.map(m=>monatsSummen[m]);
+  return{vorschlag:Math.ceil(median(werte)/10)*10,min:Math.min(...werte),max:Math.max(...werte),
+    monate:monate.map(m=>MONL[lang][parseInt(m.split("-")[1],10)-1])};
+}
 
 let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0;
+let manAboName="",manAboBetrag="",manAboZyklus="monat",manAboDatum=isoDatum(new Date());
+let offeneKategorie=null;
 let aboAnalyse=null;
 let loeschenBestaetigen=false;
 let settingsOffen=false;
@@ -565,6 +602,100 @@ function anzeigename(posten){
   return Object.entries(zaehlung).sort((a,b)=>b[1]-a[1])[0][0];
 }
 function median(arr){const s=[...arr].sort((a,b)=>a-b);return s.length?s[Math.floor(s.length/2)]:0}
+
+/* Teil 1: Vertragskennung, Umsatzart-Signal, Betragscluster */
+const VERTRAG_MUSTER=[
+ /Kundenkonto\s*[:\-]?\s*(\S+)/i,
+ /Vertragskonto\s*[:\-]?\s*(\S+)/i,
+ /Vertrag\s+([A-Z]{0,4}-?\d{4,})/i,
+ /\bKTO\s*[:\-]?\s*(\d+)/i,
+ /Versicherungsschein\s*[:\-]?\s*(\S+)/i,
+ /Kunden-?Referenznummer\s*[:\-]?\s*(\S+)/i];
+function vertragskennung(zweck){
+  const z=zweck||"";
+  for(const re of VERTRAG_MUSTER){const m=z.match(re);if(m)return m[1].replace(/[.,;:]+$/,"")}
+  return null;
+}
+function istLastschriftArtig(umsatzart){
+  if(!umsatzart)return null;
+  return /lastschrift|dauerauftrag|überweisung|ueberweisung/i.test(umsatzart);
+}
+const KARTEN_ABO_AUSNAHMEN=["NETFLIX","SPOTIFY","AUDIBLE","APPLE","DISNEY","AMAZON PRIME","AMAZON"];
+function zeitraeumeUeberlappen(a,b){
+  const minA=Math.min(...a.map(e=>e.ts)),maxA=Math.max(...a.map(e=>e.ts));
+  const minB=Math.min(...b.map(e=>e.ts)),maxB=Math.max(...b.map(e=>e.ts));
+  return minA<=maxB&&minB<=maxA;
+}
+function clustereBetraegeEinfach(eintraege,toleranz=0.15){
+  const sortiert=[...eintraege].sort((a,b)=>a.betrag-b.betrag);
+  const cluster=[];
+  sortiert.forEach(e=>{
+    let ziel=null;
+    for(const c of cluster){
+      const mittel=c.reduce((s,x)=>s+x.betrag,0)/c.length;
+      if(Math.abs(e.betrag-mittel)/mittel<=toleranz){ziel=c;break}
+    }
+    if(ziel)ziel.push(e);else cluster.push([e]);
+  });
+  return cluster;
+}
+function clustereBetraege(eintraege,toleranz=0.15){
+  const cluster=clustereBetraegeEinfach(eintraege,toleranz);
+  let geaendert=true;
+  while(geaendert&&cluster.length>1){
+    geaendert=false;
+    outer:
+    for(let i=0;i<cluster.length;i++)for(let j=i+1;j<cluster.length;j++){
+      if(!zeitraeumeUeberlappen(cluster[i],cluster[j])){
+        cluster[i]=cluster[i].concat(cluster[j]);cluster.splice(j,1);geaendert=true;break outer;
+      }
+    }
+  }
+  return cluster;
+}
+function trenneJahresabrechnung(eintraege){
+  if(eintraege.length<4)return{normal:eintraege,jahresabrechnungen:[]};
+  const cluster=clustereBetraegeEinfach(eintraege).sort((a,b)=>b.length-a.length);
+  const haupt=cluster[0];
+  if(haupt.length<3||haupt.length<eintraege.length*0.5)return{normal:eintraege,jahresabrechnungen:[]};
+  const hauptMittel=haupt.reduce((s,e)=>s+e.betrag,0)/haupt.length;
+  const jahresabrechnungen=eintraege.filter(e=>!haupt.includes(e)&&e.betrag>hauptMittel*1.3);
+  const normal=eintraege.filter(e=>!jahresabrechnungen.includes(e));
+  return{normal,jahresabrechnungen};
+}
+function gruppenBilden(eintraege){
+  const haendlerGruppen=clustereHaendler(eintraege);
+  const finalGruppen=[];
+  Object.entries(haendlerGruppen).forEach(([hSchluessel,posten])=>{
+    const kartenErlaubt=KARTEN_ABO_AUSNAHMEN.some(a=>hSchluessel.includes(a)||a.includes(hSchluessel));
+    const karte=posten.filter(e=>istLastschriftArtig(e.umsatzart)===false);
+    const lastschriftArtig=posten.filter(e=>istLastschriftArtig(e.umsatzart)!==false);
+    [{liste:lastschriftArtig,istKarte:false},{liste:karte,istKarte:true}].forEach(({liste,istKarte})=>{
+      if(!liste.length)return;
+      const mitKennung={},ohneKennung=[];
+      liste.forEach(e=>{
+        const vk=vertragskennung(e.notiz);
+        if(vk)(mitKennung[vk]=mitKennung[vk]||[]).push(e);else ohneKennung.push(e);
+      });
+      Object.entries(mitKennung).forEach(([vk,es])=>{
+        finalGruppen.push({schluessel:hSchluessel+"|"+vk,eintraege:es,kartenAbo:istKarte,kartenErlaubt});
+      });
+      if(ohneKennung.length){
+        const grobeCluster=istKarte?[ohneKennung]:clustereBetraegeEinfach(ohneKennung);
+        if(grobeCluster.length<=3){
+          const betragsCluster=istKarte?[ohneKennung]:clustereBetraege(ohneKennung);
+          betragsCluster.forEach((c,i)=>{
+            finalGruppen.push({schluessel:hSchluessel+(betragsCluster.length>1?"#"+i:""),eintraege:c,kartenAbo:istKarte,kartenErlaubt});
+          });
+        }else{
+          finalGruppen.push({schluessel:hSchluessel,eintraege:ohneKennung,kartenAbo:istKarte,kartenErlaubt});
+        }
+      }
+    });
+  });
+  return finalGruppen;
+}
+
 function berechneKennzahlen(posten){
   const sortiert=[...posten].sort((a,b)=>a.ts-b.ts);
   const betraege=sortiert.map(e=>e.betrag),n=betraege.length;
@@ -583,13 +714,13 @@ function berechneKennzahlen(posten){
   return{n,betragMittel,betragCV,abstandCV,medianAbstand,letzteBuchung:sortiert[n-1].ts,ersteBuchung:sortiert[0].ts,sortiert,betraege};
 }
 function zyklusPasst(tage){
-  return(tage>=24&&tage<=36)||(tage>=78&&tage<=102)||(tage>=335&&tage<=395);
+  return(tage>=23&&tage<=37)||(tage>=75&&tage<=105)||(tage>=320&&tage<=410);
 }
-function klassifiziereTopf(k){
+function klassifiziereTopf(k,kartenGesperrt){
   if(k.n<3)return"C";
-  if(k.betragCV<=0.05&&k.abstandCV<=0.25&&zyklusPasst(k.medianAbstand))return"A";
+  if(!kartenGesperrt&&k.betragCV<=0.10&&k.abstandCV<=0.30&&zyklusPasst(k.medianAbstand))return"A";
   if(k.n>=6)return"B";
-  return"C";
+  return"UNSICHER";
 }
 function erkennePreisAenderung(k){
   if(k.n<4)return null;
@@ -605,21 +736,26 @@ function erkennePreisAenderung(k){
 }
 function analysiereAbos(){
   const posten=S.eintraege.filter(e=>e.typ!=="einnahme"&&(e.notiz||"").trim());
-  const gruppen=clustereHaendler(posten);
+  const gruppen=gruppenBilden(posten);
   const bekannt=new Set([...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name))]);
   const heute=Date.now();
-  const fixkosten=[],beendet=[],gewohnheiten=[],preisfragen=[];
-  Object.entries(gruppen).forEach(([schluessel,eintraege])=>{
+  const fixkosten=[],beendet=[],gewohnheiten=[],preisfragen=[],unsicher=[];
+  gruppen.forEach(({schluessel,eintraege,kartenAbo,kartenErlaubt})=>{
     if(eintraege.length<3)return;
-    const name=anzeigename(eintraege);
+    const{normal,jahresabrechnungen}=trenneJahresabrechnung(eintraege);
+    if(normal.length<3)return;
+    const name=anzeigename(normal);
     if(bekannt.has(normalisiere(name)))return;
     const regel=(S.abRegeln||{})[schluessel];
     if(regel&&regel.ignoriert)return;
-    const k=berechneKennzahlen(eintraege);
-    const topf=regel&&regel.topfUeberschreibung?regel.topfUeberschreibung:klassifiziereTopf(k);
-    const eintrag={id:"vs_"+schluessel,schluessel,name,betrag:Math.round(k.betragMittel*100)/100,
+    const k=berechneKennzahlen(normal);
+    const gesperrt=kartenAbo&&!kartenErlaubt;
+    const topf=regel&&regel.topfUeberschreibung?regel.topfUeberschreibung:klassifiziereTopf(k,gesperrt);
+    const betragAktuell=median(k.sortiert.slice(-Math.max(3,Math.ceil(k.n/2))).map(e=>e.betrag));
+    const eintrag={id:"vs_"+schluessel,schluessel,name,betrag:Math.round(betragAktuell*100)/100,
       tag:new Date(k.letzteBuchung).getDate(),n:k.n,betragCV:k.betragCV,abstandCV:k.abstandCV,
-      medianAbstand:Math.round(k.medianAbstand),letzteBuchung:k.letzteBuchung};
+      medianAbstand:Math.round(k.medianAbstand),letzteBuchung:k.letzteBuchung,
+      jahresabrechnung:jahresabrechnungen.length?Math.round(median(jahresabrechnungen.map(j=>j.betrag))*100)/100:null};
     if(topf==="A"){
       const inaktivSchwelle=k.medianAbstand*2+7;
       const tageSeitLetzter=(heute-k.letzteBuchung)/864e5;
@@ -627,20 +763,22 @@ function analysiereAbos(){
       if(!regel||!regel.preisEntscheidung){
         const pa=erkennePreisAenderung(k);
         if(pa){preisfragen.push({...eintrag,...pa});return}
-      }else if(regel.preisEntscheidung.aktion==="preisaenderung"){
+      }else if(regel.preisEntscheidung.aktion==="preisaenderung"||regel.preisEntscheidung.aktion==="neu"){
         eintrag.betrag=Math.round(regel.preisEntscheidung.neuerBetrag*100)/100;
         eintrag.verlauf=regel.preisEntscheidung;
       }
       fixkosten.push(eintrag);
     }else if(topf==="B"&&k.n>=6){
       gewohnheiten.push(eintrag);
+    }else if(topf==="UNSICHER"){
+      unsicher.push(eintrag);
     }
   });
   const proKategorie={};
   fixkosten.forEach(f=>{const kat=autoKategorie(f.name);(proKategorie[kat]=proKategorie[kat]||[]).push(f)});
   const parallel=Object.entries(proKategorie).filter(([,v])=>v.length>=2)
     .map(([kat,v])=>({kat,anzahl:v.length,summe:v.reduce((s,f)=>s+f.betrag,0),namen:v.map(f=>f.name)}));
-  return{fixkosten,beendet,gewohnheiten,preisfragen,parallel};
+  return{fixkosten,beendet,gewohnheiten,preisfragen,parallel,unsicher};
 }
 const DATUM_KEYWORDS=["buchungstag","wert","valuta","datum"];
 const BETRAG_KEYWORDS=["betrag","umsatz","soll","haben","amount"];
@@ -696,13 +834,14 @@ function csvEinlesen(){
   const iBetrag=findSpalte(header,BETRAG_KEYWORDS);
   const iText=findSpalte(header,["verwendungszweck","buchungstext","beschreibung"]);
   const iPartner=findSpalte(header,["begünstigter","beguenstigter","empfänger","empfaenger","zahlungspflicht","auftraggeber"]);
+  const iUmsatzart=findSpalte(header,["umsatzart"]);
   if(!rows.length||iDatum<0||iBetrag<0){
     importFehler={typ:"spalten",header,ersteDatenzeile:ersteDatenzeile||(rows[0]?rows[0].join(" | "):"")};render();return;
   }
   const geparst=rows.map(r=>{
     const partner=iPartner>=0?r[iPartner]:"",zweck=iText>=0?r[iText]:"";
-    return{datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),haendler:bereinigeHaendler(partner,zweck)};
-  }).filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag<0);
+    return{datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),haendler:bereinigeHaendler(partner,zweck),umsatzart:iUmsatzart>=0?r[iUmsatzart]:""};
+  }).filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag!==0);
   if(!geparst.length){
     importFehler={typ:"keineAusgaben",header,ersteDatenzeile:ersteDatenzeile||(rows[0]?rows[0].join(" | "):"")};render();return;
   }
@@ -712,8 +851,10 @@ function csvEinlesen(){
   const nutze=imFenster.length?imFenster:geparst;
   importVersteckteAnzahl=geparst.length-nutze.length;
   importRows=nutze.map((r,i)=>{
+    const istEinnahme=r.betrag>0;
     const dup=istDuplikat(r.datum,Math.abs(r.betrag),r.haendler);
-    return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),kat:autoKategorie(r.haendler),drin:!dup,dup};
+    return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),
+      kat:istEinnahme?null:autoKategorie(r.haendler),istEinnahme,umsatzart:r.umsatzart,drin:!dup,dup};
   });
   render();
 }
@@ -800,7 +941,7 @@ function faellig(z){
    <div class="topf-fuss">${L("ohneQuartal")}</div></div>
   <div class="karte"><h2>${L("deineAbos")}</h2>${alleFix.map(f=>`
    <div class="fz"><div class="fi"><div class="fn">${esc(nameVon(f))}${f.bis?`<span class="flab warn">${L("endetAm")(String(new Date(f.bis).getDate()).padStart(2,"0")+"."+String(new Date(f.bis).getMonth()+1).padStart(2,"0")+".")}</span>`:""}</div>
-   <div class="finfo">${f.typ==="monat"?L("monatlich"):L("quartalsweise")}</div></div>
+   <div class="finfo">${f.typ==="monat"?L("monatlich"):f.typ==="jahr"?L("jaehrlich"):L("quartalsweise")}</div></div>
    <div class="fw">${f0(f.betrag)} €</div></div>`).join("")}</div>
   <div class="karte"><h2>${L("alsNaechstesFaellig")}</h2>${z.faellig.slice(0,14).map(f=>{
     const t=tdiff(f.wann,z.h0);
@@ -844,10 +985,20 @@ function referenz(z){
    <div class="reihe stark"><span>${L("saldoMonat")}</span><span class="wert" style="color:${saldo<0?"var(--rot)":"var(--gruen)"}">${saldo>=0?"+":""}${f0(saldo)} €</span></div></div>
   <div class="karte"><h2>${L("deinSchnitt")}</h2>
    <p class="text">${L("schnittText")}</p>
-   ${trackKat.map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe,ref=referenzWert(k.id);
-   return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${kl(k.id)}</span>
+   ${trackKat.map(k=>{
+   const ist=z.proKat.find(x=>x.id===k.id).summe,ref=referenzWert(k.id),offen=offeneKategorie===k.id;
+   const monatsEintraege=offen?S.eintraege.filter(e=>e.kat===k.id&&e.typ!=="einnahme"&&mk(new Date(e.ts))===mk(heute)).sort((a,b)=>b.betrag-a.betrag):[];
+   return`<div class="vert"><div class="vert-kopf">
+   <span data-kat-toggle="${k.id}" style="cursor:pointer"><span class="punkt" data-k="${k.id}"></span>${kl(k.id)} ${offen?"▾":"▸"}</span>
    <span class="wert">${f0(ist)} € / <input class="ref-input" type="text" inputmode="decimal" data-ref="${k.id}" value="${ref==null?"":f0(ref)}" placeholder="${L("nochKeineDaten")}"> €</span></div>
-   <div class="spur"><div class="fuell" style="width:${ref?Math.min(100,ist/ref*100):0}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>
+   <div class="spur" data-kat-toggle="${k.id}" style="cursor:pointer"><div class="fuell" style="width:${ref?Math.min(100,ist/ref*100):0}%;background:var(--tinte)"></div></div>
+   ${offen?(monatsEintraege.length?`<ul class="liste" style="margin-top:10px">${monatsEintraege.map(e=>`<li class="zeile" style="flex-wrap:wrap;row-gap:8px">
+    <span class="zeile-h" style="flex-basis:100%">${esc(e.notiz||"—")}<span class="zeile-n">${datumKurz(e.ts)}</span></span>
+    <input class="ref-input" style="width:56px" type="text" inputmode="decimal" data-edit-betrag="${e.id}" value="${f2(e.betrag)}">
+    <select data-edit-kat="${e.id}" style="border:1px solid var(--linie);border-radius:8px;padding:4px 5px;font-size:11px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
+     ${KAT.map(k2=>`<option value="${k2.id}"${k2.id===e.kat?" selected":""}>${kl(k2.id)}</option>`).join("")}
+    </select>
+    <button class="weg" data-edit-loeschen="${e.id}">×</button></li>`).join("")}</ul>`:`<p class="finfo" style="margin-top:10px">${L("keineBuchungenDiesenMonat")}</p>`):""}</div>`}).join("")}</div>
   <div class="karte"><h2>${L("monatsvergleich")}</h2>
    <p class="text">${L("monatsvergleichText")}</p>
    ${trackKat.map(k=>{
@@ -874,14 +1025,18 @@ function einstellungen(){
 }
 
 function budgets(){
-  const F=[["w_lebensmittel",L("lebensmittelWoche"),L("taeglich")],
-   ["w_auswaerts",L("auswaertsWoche"),L("taeglich")],
-   ["m_shopping",L("shoppingMonat"),L("inSchueben")],
-   ["m_freizeit",L("freizeitMonat"),L("inSchueben")]];
+  const F=[["w_lebensmittel","lebensmittel",L("lebensmittelWoche"),L("taeglich")],
+   ["w_auswaerts","auswaerts",L("auswaertsWoche"),L("taeglich")],
+   ["m_shopping","shopping",L("shoppingMonat"),L("inSchueben")],
+   ["m_freizeit","freizeit",L("freizeitMonat"),L("inSchueben")]];
   const b=S.budget;
   return`<div class="karte"><h2>${L("budgetsHeading")}</h2>
-   ${F.map(([id,l,h])=>`<div class="feldzeile"><div><label for="${id}">${l}</label><div class="finfo">${h}</div></div>
-   <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`).join("")}
+   ${F.map(([id,katId,l,h])=>{
+     const vs=budgetVorschlag(katId);
+     return`<div class="feldzeile" style="align-items:flex-start"><div><label for="${id}">${l}</label><div class="finfo">${h}</div>
+     ${vs?`<div class="finfo" data-budget-vorschlag="${id}" data-vorschlag-wert="${vs.vorschlag}" style="cursor:pointer;text-decoration:underline dashed;margin-top:5px">${L("budgetVorschlagText")(f0(vs.vorschlag),vs.monate.join(", "))} <span style="opacity:.7">(${f0(vs.min)}–${f0(vs.max)} €)</span></div>`:""}</div>
+     <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`;
+   }).join("")}
    <p class="finfo" style="margin-top:14px;line-height:1.6">${L("budgetErklaerung")}</p></div>
   <div class="karte"><h2>${L("umgerechnet")}</h2>
    <div class="reihe"><span>${L("lebensmittelMonat")}</span><span class="wert">${f0(b.w_lebensmittel*4.35)} €</span></div>
@@ -896,6 +1051,17 @@ function budgets(){
    <button class="sekundaer" id="csvEinlesen">${L("einlesen")}</button>
    <button class="sekundaer" id="aboErkennen">${L("wiederkehrendeErkennen")}</button>
    ${importFehler?`<p class="finfo" style="background:var(--bg);border-radius:10px;padding:10px;margin-top:12px;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.6">${esc(diagnoseText(importFehler))}</p>`:""}</div>
+  <div class="karte"><h2>${L("aboManuellHeading")}</h2>
+   <p class="text">${L("aboManuellText")}</p>
+   <input class="feld" id="manAboName" placeholder="${L("aboName")}" value="${esc(manAboName)}">
+   <input class="feld" id="manAboBetrag" type="text" inputmode="decimal" placeholder="${L("aboBetragPlatzh")}" value="${esc(manAboBetrag)}">
+   <div class="chips">
+    <button class="chip${manAboZyklus==="monat"?" on":""}" data-man-zyklus="monat">${L("monatlich")}</button>
+    <button class="chip${manAboZyklus==="quartal"?" on":""}" data-man-zyklus="quartal">${L("quartalsweise")}</button>
+    <button class="chip${manAboZyklus==="jahr"?" on":""}" data-man-zyklus="jahr">${L("jaehrlich")}</button>
+   </div>
+   <input class="feld" id="manAboDatum" type="date" value="${manAboDatum}">
+   <button class="sekundaer" id="manAboHinzu">${L("hinzufuegen")}</button></div>
   <div class="karte"><h2>${L("datenSichern")}</h2>
    <p class="text">${L("datenSichernText")}</p>
    <button class="sekundaer" id="export">${L("alsDateiExportieren")}</button>
@@ -920,11 +1086,11 @@ function importAnsicht(){
    ${importVersteckteAnzahl>0?`<p class="finfo" style="margin:-6px 0 14px">${L("aeltereAusgeblendet")(importVersteckteAnzahl)} <button class="iconbtn" id="impAlleAnzeigen" style="text-decoration:underline;width:auto;height:auto;display:inline;color:var(--tinte);padding:0">${L("alleAnzeigen")}</button></p>`:""}
    <ul class="liste">${importRows.map(r=>`<li class="zeile">
     <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
-    <span class="zeile-h">${esc(r.notiz||"—")}${r.dup?`<span class="flab warn">${L("moeglichesDuplikat")}</span>`:""}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
-    <select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
+    <span class="zeile-h">${esc(r.notiz||"—")}${r.istEinnahme?`<span class="flab" style="background:var(--gruen)">${L("einnahme")}</span>`:""}${r.dup?`<span class="flab warn">${L("moeglichesDuplikat")}</span>`:""}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
+    ${r.istEinnahme?"":`<select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
      ${KAT.map(k=>`<option value="${k.id}"${k.id===r.kat?" selected":""}>${kl(k.id)}</option>`).join("")}
-    </select>
-    <span class="wert">${f2(r.betrag)}</span></li>`).join("")}</ul>
+    </select>`}
+    <span class="wert"${r.istEinnahme?` style="color:var(--gruen)"`:""}">${r.istEinnahme?"+":""}${f2(r.betrag)}</span></li>`).join("")}</ul>
    <button class="primaer" id="impBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${L("importBestaetigen")(n)}</button>
    <button class="sekundaer" id="impAbbrechen">${L("abbrechen")}</button></div>`;
 }
@@ -947,11 +1113,17 @@ function aboVorschlaegeAnsicht(){
    <p class="text">${L("aboErkanntText")(a.fixkosten.length)}</p>
    <ul class="liste">${a.fixkosten.map(v=>`<li class="zeile">
     <input type="checkbox" data-vs-check="${v.id}"${v.drin?" checked":""} style="flex:none;width:18px;height:18px">
-    <span class="zeile-h">${esc(v.name)}${v.verlauf?`<span class="flab">${L("seitAngepasst")(datumKurz(v.verlauf.seitTs),f2(v.verlauf.alterBetrag))}</span>`:""}<span class="zeile-n">${L("aboStats")(v.n,v.betragCV.toFixed(2),v.medianAbstand,v.abstandCV.toFixed(2))}</span></span>
+    <span class="zeile-h">${esc(v.name)}${v.verlauf?`<span class="flab">${L("seitAngepasst")(datumKurz(v.verlauf.seitTs),f2(v.verlauf.alterBetrag))}</span>`:""}<span class="zeile-n">${L("aboStats")(v.n,v.betragCV.toFixed(2),v.medianAbstand,v.abstandCV.toFixed(2))}${v.jahresabrechnung?" · "+L("jahresabrechnungHinweis")(f0(v.jahresabrechnung)):""}</span></span>
     <span class="wert">${f0(v.betrag)} €</span>
     <button class="weg" data-vs-verwerfen="${v.id}" title="${L("keinAbo")}">×</button></li>`).join("")}</ul>
    <button class="primaer" id="vsBestaetigen" style="margin-top:14px"${n?"":" disabled"}>${L("aboUebernehmen")(n)}</button>
    <button class="sekundaer" id="vsAbbrechen">${L("abbrechen")}</button></div>
+  ${a.unsicher.length?`<div class="karte"><h2>${L("unsicherHeading")}</h2>
+   <p class="text">${L("unsicherText")}</p>
+   <ul class="liste">${a.unsicher.map(v=>`<li class="zeile">
+    <span class="zeile-h">${esc(v.name)}<span class="zeile-n">${L("aboStats")(v.n,v.betragCV.toFixed(2),v.medianAbstand,v.abstandCV.toFixed(2))}</span></span>
+    <button class="chip" data-uns-aktion="ja" data-uns-id="${v.id}">${L("unsicherJa")}</button>
+    <button class="chip" data-uns-aktion="nein" data-uns-id="${v.id}">${L("unsicherNein")}</button></li>`).join("")}</ul></div>`:""}
   ${a.beendet.length?`<div class="karte"><h2>${L("beendetHeading")}</h2>
    <p class="text">${L("beendetText")}</p>
    ${a.beendet.map(v=>`<div class="reihe"><span>${esc(v.name)}</span><span class="finfo">${L("letzteBuchungAm")(datumKurz(v.letzteBuchung))}</span></div>`).join("")}</div>`:""}`;
@@ -1033,6 +1205,23 @@ function binden(){
     S.refUeberschreibung=S.refUeberschreibung||{};
     if(!isNaN(v)&&v>0)S.refUeberschreibung[inp.dataset.ref]=v;else delete S.refUeberschreibung[inp.dataset.ref];
     sichern();render()});
+  document.querySelectorAll("[data-budget-vorschlag]").forEach(el=>el.onclick=()=>{
+    S.budget[el.dataset.budgetVorschlag]=parseFloat(el.dataset.vorschlagWert);sichern();render()});
+  document.querySelectorAll("[data-kat-toggle]").forEach(el=>el.onclick=()=>{
+    const k=el.dataset.katToggle;offeneKategorie=offeneKategorie===k?null:k;render()});
+  document.querySelectorAll("[data-edit-betrag]").forEach(inp=>inp.onchange=e=>{
+    const entry=S.eintraege.find(x=>x.id===inp.dataset.editBetrag);
+    const v=parseFloat(e.target.value.replace(",","."));
+    if(entry&&!isNaN(v)&&v>0){entry.betrag=v;sichern();render()}});
+  document.querySelectorAll("[data-edit-kat]").forEach(sel=>sel.onchange=e=>{
+    const entry=S.eintraege.find(x=>x.id===sel.dataset.editKat);
+    const neu=e.target.value;
+    if(entry&&neu!==entry.kat){
+      entry.kat=neu;
+      if(entry.notiz)S.gelernt[normalisiere(entry.notiz)]=neu;
+      sichern();render();toast(L("tKategorieGemerkt"))}});
+  document.querySelectorAll("[data-edit-loeschen]").forEach(b=>b.onclick=()=>{
+    S.eintraege=S.eintraege.filter(x=>x.id!==b.dataset.editLoeschen);sichern();render()});
   const ex=document.getElementById("export");
   if(ex)ex.onclick=()=>{
     const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
@@ -1065,10 +1254,28 @@ function binden(){
   const ae=document.getElementById("aboErkennen");
   if(ae)ae.onclick=()=>{
     const a=analysiereAbos();a.fixkosten.forEach(v=>v.drin=true);
-    if(a.fixkosten.length||a.beendet.length||a.preisfragen.length){aboAnalyse=a;render()}
+    if(a.fixkosten.length||a.beendet.length||a.preisfragen.length||a.unsicher.length){aboAnalyse=a;render()}
     else toast(L("tKeineAbosErkannt"))};
   const al=document.getElementById("allesLoeschen");
   if(al)al.onclick=()=>{loeschenBestaetigen=true;render()};
+  const man=document.getElementById("manAboName");
+  if(man)man.oninput=e=>{manAboName=e.target.value};
+  const manB=document.getElementById("manAboBetrag");
+  if(manB)manB.oninput=e=>{manAboBetrag=e.target.value};
+  const manD=document.getElementById("manAboDatum");
+  if(manD)manD.onchange=e=>{manAboDatum=e.target.value};
+  document.querySelectorAll("[data-man-zyklus]").forEach(b=>b.onclick=()=>{manAboZyklus=b.dataset.manZyklus;render()});
+  const manH=document.getElementById("manAboHinzu");
+  if(manH)manH.onclick=()=>{
+    const name=manAboName.trim(),betrag=parseFloat(manAboBetrag.replace(",","."));
+    if(!name||!betrag||betrag<=0||!manAboDatum)return;
+    const[jj,mm,tt]=manAboDatum.split("-").map(Number);
+    const eintrag={id:"abo"+Date.now(),name,betrag,typ:manAboZyklus,tag:tt};
+    if(manAboZyklus==="quartal")eintrag.monate=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>((m-mm)%3+3)%3===0);
+    else if(manAboZyklus==="jahr")eintrag.monate=[mm];
+    S.abos.push(eintrag);sichern();
+    manAboName="";manAboBetrag="";manAboZyklus="monat";manAboDatum=isoDatum(new Date());
+    render();toast(L("tAboHinzugefuegt"))};
 }
 
 function bindenLoeschen(){
@@ -1089,15 +1296,18 @@ function bindenImport(){
   if(alle)alle.onclick=()=>{
     importVersteckteAnzahl=0;
     importRows=importAlleGeparst.map((r,i)=>{
+      const istEinnahme=r.betrag>0;
       const dup=istDuplikat(r.datum,Math.abs(r.betrag),r.haendler);
-      return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),kat:autoKategorie(r.haendler),drin:!dup,dup};
+      return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),
+        kat:istEinnahme?null:autoKategorie(r.haendler),istEinnahme,umsatzart:r.umsatzart,drin:!dup,dup};
     });
     render()};
   const ok=document.getElementById("impBestaetigen");
   if(ok)ok.onclick=()=>{
-    const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),betrag:r.betrag,kat:r.kat,notiz:r.notiz}));
+    const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),
+      betrag:r.betrag,kat:r.istEinnahme?null:r.kat,typ:r.istEinnahme?"einnahme":undefined,notiz:r.notiz,umsatzart:r.umsatzart}));
     if(neue.length)S.marken.import=true;
-    neue.forEach(r=>{if(r.notiz)S.gelernt[normalisiere(r.notiz)]=r.kat});
+    neue.forEach(r=>{if(r.notiz&&r.typ!=="einnahme")S.gelernt[normalisiere(r.notiz)]=r.kat});
     S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
     sichern();const n=neue.length;importRows=null;importText="";
     const a=analysiereAbos();a.fixkosten.forEach(v=>v.drin=true);
@@ -1127,6 +1337,16 @@ function bindenAboVorschlaege(){
     sichern();aboAnalyse=analysiereAbos();
     aboAnalyse.fixkosten.forEach(x=>{x.drin=x.schluessel in drinVorher?drinVorher[x.schluessel]:true});
     render()});
+  document.querySelectorAll("[data-uns-aktion]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.unsId,aktion=b.dataset.unsAktion;
+    const v=aboAnalyse.unsicher.find(x=>x.id===id);
+    S.abRegeln=S.abRegeln||{};
+    if(aktion==="ja"){
+      S.abos.push({id:"abo"+Date.now()+Math.random().toString(36).slice(2,5),name:v.name,betrag:v.betrag,typ:"monat",tag:v.tag,schluessel:v.schluessel});
+    }else{
+      S.abRegeln[v.schluessel]={ignoriert:true};
+    }
+    sichern();aboAnalyse=analysiereAbos();render()});
   const ok=document.getElementById("vsBestaetigen");
   if(ok)ok.onclick=()=>{
     const neu=aboAnalyse.fixkosten.filter(v=>v.drin).map(v=>{
