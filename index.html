@@ -257,7 +257,7 @@ const T={
   aboErkanntText:n=>`${n} mögliche Abos gefunden — anhand von mindestens drei ähnlichen Buchungen über verschiedene Monate. Prüfen und übernehmen.`,
   proMonatAm:t=>`monatlich, etwa am ${t}.`,
   aboUebernehmen:n=>`${n} übernehmen`,tAboUebernommen:n=>`${n} Abos übernommen`,
-  allesLoeschen:"Alles löschen",
+  allesLoeschen:"Alles löschen",jaAllesLoeschen:"Ja, alles löschen",
   allesLoeschenConfirm:"Wirklich ALLES löschen — Buchungen, Budgets, Abos und gelernte Kategorien? Das kann nicht rückgängig gemacht werden, z. B. bevor du das Gerät oder den Link weitergibst.",
   tAllesGeloescht:"Alles gelöscht"
  },
@@ -324,7 +324,7 @@ const T={
   aboErkanntText:n=>`Found ${n} possible subscriptions — based on at least three similar entries across different months. Review and confirm.`,
   proMonatAm:t=>`monthly, around day ${t}`,
   aboUebernehmen:n=>`Add ${n}`,tAboUebernommen:n=>`${n} subscriptions added`,
-  allesLoeschen:"Delete everything",
+  allesLoeschen:"Delete everything",jaAllesLoeschen:"Yes, delete everything",
   allesLoeschenConfirm:"Really delete EVERYTHING — entries, budgets, subscriptions and learned categories? This can't be undone, e.g. before handing off the device or link.",
   tAllesGeloescht:"Everything deleted"
  }};
@@ -391,6 +391,7 @@ function berechneErfolge(){
 let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[]},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
 let importText="",importRows=null;
 let aboVorschlaege=null;
+let loeschenBestaetigen=false;
 let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
 let lang=localStorage.getItem("kontur:lang")||"de";
@@ -701,12 +702,20 @@ function aboVorschlaegeAnsicht(){
    <button class="sekundaer" id="vsAbbrechen">${L("abbrechen")}</button></div>`;
 }
 
+function loeschenAnsicht(){
+  return`<div class="karte"><h2>${L("allesLoeschen")}</h2>
+   <p class="text">${L("allesLoeschenConfirm")}</p>
+   <button class="primaer" id="loeschenJa" style="background:var(--rot)">${L("jaAllesLoeschen")}</button>
+   <button class="sekundaer" id="loeschenAbbrechen">${L("abbrechen")}</button></div>`;
+}
+
 /* ═══ Rendern ══════════════════════════════════════════════ */
 function render(){
   document.documentElement.lang=lang;
   const app=document.getElementById("app");
   if(importRows){app.innerHTML=importAnsicht();document.getElementById("nav").innerHTML="";bindenImport();return}
   if(aboVorschlaege){app.innerHTML=aboVorschlaegeAnsicht();document.getElementById("nav").innerHTML="";bindenAboVorschlaege();return}
+  if(loeschenBestaetigen){app.innerHTML=loeschenAnsicht();document.getElementById("nav").innerHTML="";bindenLoeschen();return}
   const z=rechne();
   const bald=z.bald.length?`<div class="bald"><div class="bald-lab">${L("baldFaellig")}</div>
    ${z.bald.map(f=>{const t=tdiff(f.wann,z.h0);
@@ -790,11 +799,16 @@ function binden(){
     if(v.length){aboVorschlaege=v.map(x=>({...x,drin:true}));render()}
     else toast(L("tKeineAbosErkannt"))};
   const al=document.getElementById("allesLoeschen");
-  if(al)al.onclick=()=>{
-    if(confirm(L("allesLoeschenConfirm"))){
-      S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[]};
-      sichern();render();toast(L("tAllesGeloescht"))
-    }};
+  if(al)al.onclick=()=>{loeschenBestaetigen=true;render()};
+}
+
+function bindenLoeschen(){
+  const ja=document.getElementById("loeschenJa");
+  if(ja)ja.onclick=()=>{
+    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[]};
+    loeschenBestaetigen=false;sichern();tab="erfassen";render();toast(L("tAllesGeloescht"))};
+  const ab=document.getElementById("loeschenAbbrechen");
+  if(ab)ab.onclick=()=>{loeschenBestaetigen=false;render()};
 }
 
 function bindenImport(){
