@@ -238,6 +238,7 @@ const T={
   csvHeading:"Kontoauszug importieren",
   csvText:"CSV-Export deiner Bank hier einfügen — für rückwirkendes Erfassen, z. B. den ganzen August auf einmal. Datum, Betrag und Verwendungszweck werden erkannt, Ausgaben automatisch kategorisiert. Vor dem Import kannst du jede Zeile noch prüfen und die Kategorie ändern.",
   csvPlaceholder:"CSV-Text hier einfügen",einlesen:"Einlesen",
+  csvDateiWaehlen:"CSV-Datei wählen",oder:"oder",tDateiNichtLesbar:"Datei konnte nicht gelesen werden",
   datenSichern:"Daten sichern",
   datenSichernText:"Alles liegt nur auf diesem Gerät. Exportiere regelmäßig, dann kannst du die Daten weitergeben oder wiederherstellen.",
   alsDateiExportieren:"Als Datei exportieren",inZwischenablage:"In die Zwischenablage",
@@ -304,6 +305,7 @@ const T={
   csvHeading:"Import bank statement",
   csvText:"Paste your bank's CSV export here — to backfill retroactively, e.g. all of August at once. Date, amount and description get detected, expenses get auto-categorized. Review and adjust every row before importing.",
   csvPlaceholder:"Paste CSV text here",einlesen:"Parse",
+  csvDateiWaehlen:"Choose CSV file",oder:"or",tDateiNichtLesbar:"Couldn't read that file",
   datenSichern:"Back up data",
   datenSichernText:"Everything stays on this device only. Export regularly so you can transfer or restore your data.",
   alsDateiExportieren:"Export as file",inZwischenablage:"Copy to clipboard",
@@ -656,6 +658,9 @@ function budgets(){
    <div class="reihe stark"><span>${L("alleToepfe")}</span><span class="wert">${f0(b.w_lebensmittel*4.35+b.w_auswaerts*4.35+b.m_shopping+b.m_freizeit)} €</span></div></div>
   <div class="karte"><h2>${L("csvHeading")}</h2>
    <p class="text">${L("csvText")}</p>
+   <label class="sekundaer" style="display:block;text-align:center;cursor:pointer;margin-top:0">${L("csvDateiWaehlen")}
+    <input type="file" id="csvdatei" accept=".csv,text/csv,text/plain" style="display:none"></label>
+   <p class="finfo" style="text-align:center;margin:10px 0">${L("oder")}</p>
    <textarea class="feld" id="csvfeld" placeholder="${L("csvPlaceholder")}">${esc(importText)}</textarea>
    <button class="sekundaer" id="csvEinlesen">${L("einlesen")}</button>
    <button class="sekundaer" id="aboErkennen">${L("wiederkehrendeErkennen")}</button></div>
@@ -771,6 +776,13 @@ function binden(){
   if(cf)cf.oninput=e=>{importText=e.target.value};
   const ce=document.getElementById("csvEinlesen");
   if(ce)ce.onclick=()=>csvEinlesen();
+  const cd=document.getElementById("csvdatei");
+  if(cd)cd.onchange=e=>{
+    const datei=e.target.files[0];if(!datei)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{importText=String(ev.target.result||"");csvEinlesen()};
+    reader.onerror=()=>toast(L("tDateiNichtLesbar"));
+    reader.readAsText(datei,"UTF-8")};
   const ae=document.getElementById("aboErkennen");
   if(ae)ae.onclick=()=>{
     const v=erkenneAbos();
