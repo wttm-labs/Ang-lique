@@ -1,4 +1,4 @@
-const CACHE = "angelique-v19";
+const CACHE = "angelique-v20";
 const DATEIEN = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {

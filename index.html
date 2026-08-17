@@ -228,6 +228,7 @@ const T={
   speichern:"Speichern",loeschen:"Löschen",
   tAboHinzugefuegt:"Abo hinzugefügt",
   budgetVorschlagText:(wert,monate)=>`Vorschlag ${wert} € — Median aus ${monate}`,
+  budgetZuVolatil:(min,max)=>`Zu unterschiedlich für einen Vorschlag — zuletzt zwischen ${min} und ${max} €.`,
   alsNaechstesFaellig:"Als Nächstes fällig",einmalig:"einmalig",
   inTagen:n=>`in ${n} Tagen`,inT:n=>`in ${n} T`,
   deinSchnitt:"Dein Schnitt",nochKeineDaten:"noch keine Daten",
@@ -242,6 +243,7 @@ const T={
   monatsvergleich:"Monatsvergleich",
   monatsvergleichText:"Diese Kategorie diesen Monat im Vergleich zum letzten — Pfeil nach oben heißt mehr ausgegeben als im Vormonat.",
   wochenrueckblick:m=>`Wochenrückblick ${m}`,
+  wochenBudgetHinweis:b=>`Wochenbudget (Lebensmittel + Auswärts): ${b} € · nur diese Kategorien, ohne Fixkosten und Einzelposten ab 200 €.`,
   rueckblickText:"Was pro Woche gebucht wurde — auch nachträglich erfasste Buchungen zählen hier in die richtige Woche.",
   aktuell:"aktuell",wocheLabel:"Woche",
   deineErfolge:"Deine Erfolge",
@@ -347,6 +349,7 @@ const T={
   speichern:"Save",loeschen:"Delete",
   tAboHinzugefuegt:"Subscription added",
   budgetVorschlagText:(wert,monate)=>`Suggestion ${wert} € — median from ${monate}`,
+  budgetZuVolatil:(min,max)=>`Too variable for a suggestion — recently between ${min} and ${max} €.`,
   alsNaechstesFaellig:"Coming up",einmalig:"one-time",
   inTagen:n=>`in ${n} days`,inT:n=>`in ${n}d`,
   deinSchnitt:"Your average",nochKeineDaten:"no data yet",
@@ -361,6 +364,7 @@ const T={
   monatsvergleich:"Month comparison",
   monatsvergleichText:"This category this month vs. last month — an upward arrow means you spent more than the month before.",
   wochenrueckblick:m=>`Weekly review — ${m}`,
+  wochenBudgetHinweis:b=>`Weekly budget (Lebensmittel + Auswärts): ${b} € · only these categories, excluding fixed costs and single items of 200 € or more.`,
   rueckblickText:"What got logged per week — entries added after the fact still land in the right week.",
   aktuell:"current",wocheLabel:"Week",
   deineErfolge:"Your achievements",
@@ -500,7 +504,7 @@ function referenzWert(katId){
   const werte=Object.values(monate).sort((a,b)=>a-b);
   return werte.length?werte[Math.floor(werte.length/2)]:null;
 }
-function budgetVorschlag(katId){
+function budgetVorschlag(katId,zyklus){
   const heute=new Date(),aktMonat=mk(heute),monatsSummen={};
   S.eintraege.filter(e=>e.typ!=="einnahme"&&e.kat===katId).forEach(e=>{
     const m=mk(new Date(e.ts));
@@ -509,9 +513,14 @@ function budgetVorschlag(katId){
   });
   const monate=Object.keys(monatsSummen).sort().slice(-3);
   if(!monate.length)return null;
-  const werte=monate.map(m=>monatsSummen[m]);
-  return{vorschlag:Math.ceil(median(werte)/10)*10,min:Math.min(...werte),max:Math.max(...werte),
-    monate:monate.map(m=>MONL[lang][parseInt(m.split("-")[1],10)-1])};
+  const werteMonat=monate.map(m=>monatsSummen[m]);
+  const med=median(werteMonat),minMonat=Math.min(...werteMonat),maxMonat=Math.max(...werteMonat);
+  const teiler=zyklus==="woche"?4.35:1,sk=v=>v/teiler;
+  const namen=monate.map(m=>MONL[lang][parseInt(m.split("-")[1],10)-1]);
+  if(med>0&&maxMonat-minMonat>med*2){
+    return{volatil:true,min:sk(minMonat),max:sk(maxMonat),monate:namen};
+  }
+  return{volatil:false,vorschlag:Math.ceil(sk(med)/10)*10,min:sk(minMonat),max:sk(maxMonat),monate:namen};
 }
 
 /* ═══ Schulden ═════════════════════════════════════════════ */
@@ -1163,11 +1172,13 @@ function erfolge(){
 function referenz(z){
   const heute=new Date();
   const trackKat=KAT.filter(k=>k.id!=="geschenke"&&k.id!=="sonstiges");
+  const wochenBudget=(S.budget.w_lebensmittel||0)+(S.budget.w_auswaerts||0);
   const rb=wochenListe(heute).map((w,i)=>{
     const von=w.start.getTime(),bis=w.ende.getTime()+86399999;
-    const posten=S.eintraege.filter(e=>e.ts>=von&&e.ts<=bis&&e.typ!=="einnahme");
+    const posten=S.eintraege.filter(e=>e.ts>=von&&e.ts<=bis&&e.typ!=="einnahme"
+      &&(e.kat==="lebensmittel"||e.kat==="auswaerts")&&e.betrag<=200);
     const summe=posten.reduce((s,e)=>s+e.betrag,0);
-    return{...w,nr:i+1,summe,anzahl:posten.length,aktuell:heute>=w.start&&heute<=w.ende};
+    return{...w,nr:i+1,summe,anzahl:posten.length,aktuell:heute>=w.start&&heute<=w.ende,abweichung:summe-wochenBudget};
   });
   const vormonat=new Date(heute.getFullYear(),heute.getMonth()-1,1),vmKey=mk(vormonat);
   const vmSumme=id=>S.eintraege.filter(e=>e.kat===id&&mk(new Date(e.ts))===vmKey).reduce((s,e)=>s+e.betrag,0);
@@ -1203,7 +1214,11 @@ function referenz(z){
    }).join("")}</div>
   <div class="karte"><h2>${L("wochenrueckblick")(MONL[lang][heute.getMonth()])}</h2>
    <p class="text">${L("rueckblickText")}</p>
-   ${rb.map(w=>`<div class="reihe${w.aktuell?" stark":""}"><span>${L("wocheLabel")} ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · "+L("aktuell"):""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}</span></div>`).join("")}</div>`;
+   ${wochenBudget?`<p class="finfo" style="margin:-6px 0 10px">${L("wochenBudgetHinweis")(f0(wochenBudget))}</p>`:""}
+   ${rb.map(w=>{
+     const diff=w.abweichung,diffFarbe=diff>0?"var(--rot)":"var(--gruen)";
+     return`<div class="reihe${w.aktuell?" stark":""}"><span>${L("wocheLabel")} ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · "+L("aktuell"):""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}${w.anzahl&&wochenBudget?` <span style="color:${diffFarbe};font-weight:600;font-size:12px">${diff>0?"+":""}${f0(diff)} €</span>`:""}</span></div>`;
+   }).join("")}</div>`;
 }
 
 function einstellungen(){
@@ -1227,9 +1242,11 @@ function budgets(){
   const b=S.budget;
   return`<div class="karte"><h2>${L("budgetsHeading")}</h2>
    ${F.map(([id,katId,l,h])=>{
-     const vs=budgetVorschlag(katId);
+     const zyklus=id.startsWith("w_")?"woche":"monat";
+     const vs=budgetVorschlag(katId,zyklus);
      return`<div class="feldzeile" style="align-items:flex-start"><div><label for="${id}">${l}</label><div class="finfo">${h}</div>
-     ${vs?`<div class="finfo" data-budget-vorschlag="${id}" data-vorschlag-wert="${vs.vorschlag}" style="cursor:pointer;text-decoration:underline dashed;margin-top:5px">${L("budgetVorschlagText")(f0(vs.vorschlag),vs.monate.join(", "))} <span style="opacity:.7">(${f0(vs.min)}–${f0(vs.max)} €)</span></div>`:""}</div>
+     ${vs?(vs.volatil?`<div class="finfo" style="margin-top:5px">${L("budgetZuVolatil")(f0(vs.min),f0(vs.max))}</div>`
+       :`<div class="finfo" data-budget-vorschlag="${id}" data-vorschlag-wert="${vs.vorschlag}" style="cursor:pointer;text-decoration:underline dashed;margin-top:5px">${L("budgetVorschlagText")(f0(vs.vorschlag),vs.monate.join(", "))} <span style="opacity:.7">(${f0(vs.min)}–${f0(vs.max)} €)</span></div>`):""}</div>
      <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`;
    }).join("")}
    <p class="finfo" style="margin-top:14px;line-height:1.6">${L("budgetErklaerung")}</p></div>
