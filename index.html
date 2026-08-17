@@ -192,7 +192,23 @@ const SEED=[];
 
 const T={
  de:{
-  navErfassen:"Erfassen",navFaellig:"Fällig",navReferenz:"Referenz",navBudgets:"Budgets",
+  navErfassen:"Erfassen",navFaellig:"Fällig",navSchulden:"Schulden",navReferenz:"Referenz",navBudgets:"Budgets",
+  schuldHinzufuegen:"Schuld hinzufügen",schuldName:"Name (z.B. Kredit Bank X)",
+  modusRestbetrag:"Restbetrag + Datum",modusGesamtdarlehen:"Gesamtdarlehen + Start",
+  restbetragPlatzh:"Restbetrag in €",gesamtdarlehenPlatzh:"Gesamtdarlehen in €",
+  sollzinsPlatzh:"Sollzins in % p.a.",ratePlatzh:"Rate in €",zusatzkostenPlatzh:"Zusatzkosten in € (optional, z.B. Ratenschutz)",
+  restschuld:"Restschuld",sollzinsLabel:"Sollzins",rateMonat:"Monatsrate",rateQuartal:"Rate pro Quartal",
+  davonZins:"davon Zins",restlaufzeit:"Restlaufzeit",gesamtzinskosten:"Gesamtzinskosten (verbleibend)",
+  restlaufzeitJM:(j,m)=>m?`${j} Jahr${j===1?"":"e"}, ${m} Monat${m===1?"":"e"}`:`${j} Jahr${j===1?"":"e"}`,
+  restlaufzeitM:m=>`${m} Monat${m===1?"":"e"}`,
+  schuldEndlosText:"Bei dieser Rate sinkt die Restschuld nicht — Zinsen übersteigen die Tilgung.",
+  bezahltAnteilText:p=>`${p} % bereits getilgt`,
+  vergleichOhneZusatz:(m,z)=>`Ohne die Zusatzkosten: ${m} Monate früher schuldenfrei, ${z} € weniger Zinsen insgesamt.`,
+  vergleichErhoehteRate:(r,m,z)=>`Bei ${r} € Rate: ${m} Monate früher schuldenfrei, ${z} € weniger Zinsen insgesamt.`,
+  keineSchulden:"Noch keine Schulden erfasst.",
+  klarnaHinweis:"Aktive Zahlkarte, keine Kreditverbindlichkeit — nur der monatliche Umsatz wird gezeigt.",
+  klarnaMonatsschnitt:"Schnitt letzte 3 Monate",
+  tSchuldHinzugefuegt:"Schuld hinzugefügt",
   baldFaellig:"Diese Woche fällig",heute:"heute",
   badgeWoche:(w,W)=>`Woche ${w} von ${W}`,zykWoche:(w,W)=>`Woche ${w} von ${W}`,
   datumFormat:(t,m)=>`${t}. ${m}`,
@@ -209,6 +225,7 @@ const T={
   aboManuellHeading:"Abo manuell anlegen",
   aboManuellText:"Für Jahresabos wie Amazon Prime, die im Zeitraum nur einmal vorkommen und die Statistik nicht finden kann.",
   aboName:"Name, z. B. Amazon Prime",aboBetragPlatzh:"Betrag in €",hinzufuegen:"Hinzufügen",
+  speichern:"Speichern",loeschen:"Löschen",
   tAboHinzugefuegt:"Abo hinzugefügt",
   budgetVorschlagText:(wert,monate)=>`Vorschlag ${wert} € — Median aus ${monate}`,
   alsNaechstesFaellig:"Als Nächstes fällig",einmalig:"einmalig",
@@ -294,7 +311,23 @@ const T={
   tAllesGeloescht:"Alles gelöscht"
  },
  en:{
-  navErfassen:"Log",navFaellig:"Due",navReferenz:"Insights",navBudgets:"Budgets",
+  navErfassen:"Log",navFaellig:"Due",navSchulden:"Debts",navReferenz:"Insights",navBudgets:"Budgets",
+  schuldHinzufuegen:"Add debt",schuldName:"Name (e.g. Loan Bank X)",
+  modusRestbetrag:"Balance + date",modusGesamtdarlehen:"Total loan + start",
+  restbetragPlatzh:"Remaining balance in €",gesamtdarlehenPlatzh:"Total loan amount in €",
+  sollzinsPlatzh:"Interest rate in % p.a.",ratePlatzh:"Payment in €",zusatzkostenPlatzh:"Extra costs in € (optional, e.g. payment protection)",
+  restschuld:"Remaining balance",sollzinsLabel:"Interest rate",rateMonat:"Monthly payment",rateQuartal:"Payment per quarter",
+  davonZins:"of which interest",restlaufzeit:"Time remaining",gesamtzinskosten:"Total interest cost (remaining)",
+  restlaufzeitJM:(j,m)=>m?`${j} year${j===1?"":"s"}, ${m} month${m===1?"":"s"}`:`${j} year${j===1?"":"s"}`,
+  restlaufzeitM:m=>`${m} month${m===1?"":"s"}`,
+  schuldEndlosText:"At this rate the balance never shrinks — interest exceeds the repayment portion.",
+  bezahltAnteilText:p=>`${p}% paid off so far`,
+  vergleichOhneZusatz:(m,z)=>`Without the extra costs: debt-free ${m} months sooner, ${z} € less interest overall.`,
+  vergleichErhoehteRate:(r,m,z)=>`At a ${r} € payment: debt-free ${m} months sooner, ${z} € less interest overall.`,
+  keineSchulden:"No debts tracked yet.",
+  klarnaHinweis:"Active payment card, not a debt — only the monthly spend is shown.",
+  klarnaMonatsschnitt:"Average of the last 3 months",
+  tSchuldHinzugefuegt:"Debt added",
   baldFaellig:"Due this week",heute:"today",
   badgeWoche:(w,W)=>`Week ${w} of ${W}`,zykWoche:(w,W)=>`Week ${w} of ${W}`,
   datumFormat:(t,m)=>`${m} ${t}`,
@@ -311,6 +344,7 @@ const T={
   aboManuellHeading:"Add subscription manually",
   aboManuellText:"For annual subscriptions like Amazon Prime that only occur once in the data and the statistics can't find.",
   aboName:"Name, e.g. Amazon Prime",aboBetragPlatzh:"Amount in €",hinzufuegen:"Add",
+  speichern:"Save",loeschen:"Delete",
   tAboHinzugefuegt:"Subscription added",
   budgetVorschlagText:(wert,monate)=>`Suggestion ${wert} € — median from ${monate}`,
   alsNaechstesFaellig:"Coming up",einmalig:"one-time",
@@ -480,12 +514,66 @@ function budgetVorschlag(katId){
     monate:monate.map(m=>MONL[lang][parseInt(m.split("-")[1],10)-1])};
 }
 
+/* ═══ Schulden ═════════════════════════════════════════════ */
+function monateProPeriode(zyklus){return zyklus==="quartal"?3:1}
+function periodenZins(sollzins,zyklus){return(sollzins/100)*monateProPeriode(zyklus)/12}
+function periodenSeit(startTs,zyklus){
+  const jetzt=new Date(),start=new Date(startTs);
+  const monateGesamt=(jetzt.getFullYear()-start.getFullYear())*12+(jetzt.getMonth()-start.getMonth());
+  return Math.max(0,Math.floor(monateGesamt/monateProPeriode(zyklus)));
+}
+function simuliereSchuld(startRest,rate,zusatzkosten,sollzins,zyklus,maxPerioden){
+  let rest=Math.max(0,startRest),perioden=0,zinsGesamt=0;
+  const zinssatz=periodenZins(sollzins,zyklus),tilgungsrate=rate-zusatzkosten;
+  if(rest<=0.5)return{perioden:0,zinsGesamt:0,restNachPerioden:0,endlos:false};
+  while(rest>0.5&&perioden<maxPerioden){
+    const zins=rest*zinssatz,tilgung=tilgungsrate-zins;
+    if(tilgung<=0)return{perioden,zinsGesamt,restNachPerioden:rest,endlos:true};
+    rest=Math.max(0,rest-tilgung);zinsGesamt+=zins;perioden++;
+  }
+  return{perioden,zinsGesamt,restNachPerioden:rest,endlos:perioden>=maxPerioden&&rest>0.5};
+}
+function berechneSchuldStatus(s){
+  const zyklus=s.zyklus||"monat",rate=s.rate||0,zusatz=s.zusatzkosten||0,zins=s.sollzins||0;
+  let restAktuell,bezahltePerioden=0,startbetrag=null;
+  if(s.modus==="gesamt"){
+    startbetrag=s.gesamtbetrag;
+    const perioden=periodenSeit(s.startDatum,zyklus);
+    const sim=simuliereSchuld(startbetrag,rate,zusatz,zins,zyklus,perioden||0);
+    restAktuell=perioden>0?sim.restNachPerioden:startbetrag;
+    bezahltePerioden=sim.perioden;
+  }else{
+    restAktuell=s.restbetrag;
+    const perioden=periodenSeit(s.alsAmDatum,zyklus);
+    if(perioden>0){
+      const sim=simuliereSchuld(restAktuell,rate,zusatz,zins,zyklus,perioden);
+      restAktuell=sim.restNachPerioden;bezahltePerioden=sim.perioden;
+    }
+  }
+  const kuenftig=simuliereSchuld(restAktuell,rate,zusatz,zins,zyklus,1200);
+  const ohneZusatz=simuliereSchuld(restAktuell,rate,0,zins,zyklus,1200);
+  const erhoehteRate=rate+(zyklus==="quartal"?150:50);
+  const mitErhoehterRate=simuliereSchuld(restAktuell,erhoehteRate,zusatz,zins,zyklus,1200);
+  return{restAktuell,startbetrag,bezahltePerioden,zyklus,rate,kuenftig,ohneZusatz,erhoehteRate,mitErhoehterRate};
+}
+function klarnaMonatsschnitt(){
+  const heute=new Date(),monatsSummen={};
+  S.eintraege.filter(e=>e.typ!=="einnahme"&&/klarna/i.test(e.notiz||"")).forEach(e=>{
+    const m=mk(new Date(e.ts));if(m===mk(heute))return;
+    monatsSummen[m]=(monatsSummen[m]||0)+e.betrag;
+  });
+  const monate=Object.keys(monatsSummen).sort().slice(-3);
+  if(!monate.length)return null;
+  return median(monate.map(m=>monatsSummen[m]));
+}
+
 let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0;
 let manAboName="",manAboBetrag="",manAboZyklus="monat",manAboDatum=isoDatum(new Date());
 let offeneKategorie=null;
 let aboAnalyse=null;
 let loeschenBestaetigen=false;
+let schuldForm=null;
 let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
 let lang=localStorage.getItem("kontur:lang")||"de";
@@ -761,7 +849,7 @@ function erkennePreisAenderung(k){
 function analysiereAbos(){
   const posten=S.eintraege.filter(e=>e.typ!=="einnahme"&&(e.notiz||"").trim());
   const gruppen=gruppenBilden(posten);
-  const bekannt=new Set([...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name))]);
+  const bekannt=new Set([...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name)),...(S.schulden||[]).map(s=>normalisiere(s.name))]);
   const heute=Date.now();
   const fixkosten=[],beendet=[],gewohnheiten=[],preisfragen=[],unsicher=[];
   gruppen.forEach(({schluessel,eintraege,kartenAbo,kartenErlaubt,semantisch})=>{
@@ -996,6 +1084,70 @@ function faellig(z){
     <div class="fw">${f0(f.betrag)} €</div></div>`}).join("")}</div>`;
 }
 
+function restlaufzeitText(sim,zyklus){
+  if(sim.endlos)return L("schuldEndlosText");
+  const monate=sim.perioden*monateProPeriode(zyklus);
+  const jahre=Math.floor(monate/12),rm=monate%12;
+  return jahre>0?L("restlaufzeitJM")(jahre,rm):L("restlaufzeitM")(monate);
+}
+function neueSchuldForm(){
+  return{name:"",modus:"rest",restbetrag:"",alsAmDatum:isoDatum(new Date()),
+    gesamtbetrag:"",startDatum:isoDatum(new Date()),sollzins:"",rate:"",zusatzkosten:"",zyklus:"monat"};
+}
+function schuldFormHTML(){
+  const f=schuldForm;
+  return`<div class="karte"><h2>${L("schuldHinzufuegen")}</h2>
+   <input class="feld" id="schuldName" placeholder="${L("schuldName")}" value="${esc(f.name)}">
+   <div class="chips">
+    <button class="chip${f.modus==="rest"?" on":""}" data-schuld-modus="rest">${L("modusRestbetrag")}</button>
+    <button class="chip${f.modus==="gesamt"?" on":""}" data-schuld-modus="gesamt">${L("modusGesamtdarlehen")}</button>
+   </div>
+   ${f.modus==="rest"?`<input class="feld" id="schuldRestbetrag" type="text" inputmode="decimal" placeholder="${L("restbetragPlatzh")}" value="${esc(f.restbetrag)}">
+   <input class="feld" id="schuldAlsAm" type="date" value="${f.alsAmDatum}" style="width:auto">`
+   :`<input class="feld" id="schuldGesamtbetrag" type="text" inputmode="decimal" placeholder="${L("gesamtdarlehenPlatzh")}" value="${esc(f.gesamtbetrag)}">
+   <input class="feld" id="schuldStart" type="date" value="${f.startDatum}" style="width:auto">`}
+   <input class="feld" id="schuldSollzins" type="text" inputmode="decimal" placeholder="${L("sollzinsPlatzh")}" value="${esc(f.sollzins)}">
+   <input class="feld" id="schuldRate" type="text" inputmode="decimal" placeholder="${L("ratePlatzh")}" value="${esc(f.rate)}">
+   <input class="feld" id="schuldZusatz" type="text" inputmode="decimal" placeholder="${L("zusatzkostenPlatzh")}" value="${esc(f.zusatzkosten)}">
+   <div class="chips">
+    <button class="chip${f.zyklus==="monat"?" on":""}" data-schuld-zyklus="monat">${L("monatlich")}</button>
+    <button class="chip${f.zyklus==="quartal"?" on":""}" data-schuld-zyklus="quartal">${L("quartalsweise")}</button>
+   </div>
+   <button class="primaer" id="schuldSpeichern">${L("speichern")}</button>
+   <button class="sekundaer" id="schuldAbbrechen">${L("abbrechen")}</button></div>`;
+}
+function schulden(){
+  const klarna=klarnaMonatsschnitt();
+  const karten=S.schulden.map(s=>{
+    const st=berechneSchuldStatus(s),zyklus=s.zyklus||"monat";
+    const zinsAktuell=st.restAktuell*periodenZins(s.sollzins,zyklus);
+    const bezahltAnteil=st.startbetrag?Math.min(100,Math.max(0,(st.startbetrag-st.restAktuell)/st.startbetrag*100)):null;
+    const vergleichbar=!st.kuenftig.endlos;
+    const monateOhne=vergleichbar&&!st.ohneZusatz.endlos?(st.kuenftig.perioden-st.ohneZusatz.perioden)*monateProPeriode(zyklus):null;
+    const zinsOhne=monateOhne!==null?st.kuenftig.zinsGesamt-st.ohneZusatz.zinsGesamt:null;
+    const monateErh=vergleichbar&&!st.mitErhoehterRate.endlos?(st.kuenftig.perioden-st.mitErhoehterRate.perioden)*monateProPeriode(zyklus):null;
+    const zinsErh=monateErh!==null?st.kuenftig.zinsGesamt-st.mitErhoehterRate.zinsGesamt:null;
+    return`<div class="karte">
+     <div class="topf-kopf"><span class="topf-lab">${esc(s.name)}</span></div>
+     <div class="topf-zahl">${f0(st.restAktuell)}<span class="topf-eur">€ ${L("restschuld")}</span></div>
+     ${bezahltAnteil!==null?`<div class="spur"><div class="fuell" style="width:${bezahltAnteil}%;background:var(--gruen)"></div></div>
+     <div class="topf-fuss">${L("bezahltAnteilText")(f0(bezahltAnteil))}</div>`:""}
+     <div class="reihe"><span>${L("sollzinsLabel")}</span><span class="wert">${f2(s.sollzins)} %</span></div>
+     <div class="reihe"><span>${zyklus==="quartal"?L("rateQuartal"):L("rateMonat")}</span><span class="wert">${f0(s.rate)} € (${L("davonZins")} ~${f0(zinsAktuell)} €)</span></div>
+     <div class="reihe"><span>${L("restlaufzeit")}</span><span class="wert">${restlaufzeitText(st.kuenftig,zyklus)}</span></div>
+     <div class="reihe stark"><span>${L("gesamtzinskosten")}</span><span class="wert">${vergleichbar?f0(st.kuenftig.zinsGesamt)+" €":"—"}</span></div>
+     ${s.zusatzkosten&&monateOhne!==null?`<p class="finfo" style="margin-top:8px">${L("vergleichOhneZusatz")(monateOhne,f0(Math.abs(zinsOhne)))}</p>`:""}
+     ${monateErh!==null?`<p class="finfo">${L("vergleichErhoehteRate")(f0(st.erhoehteRate),monateErh,f0(Math.abs(zinsErh)))}</p>`:""}
+     <button class="weg" data-schuld-loeschen="${s.id}" style="margin-top:10px">${L("loeschen")}</button>
+    </div>`;
+  }).join("");
+  return`${karten}
+  ${klarna?`<div class="karte"><h2>Klarna</h2><p class="text">${L("klarnaHinweis")}</p>
+   <div class="reihe stark"><span>${L("klarnaMonatsschnitt")}</span><span class="wert">${f0(klarna)} €</span></div></div>`:""}
+  ${schuldForm?schuldFormHTML():`<div class="karte"><button class="sekundaer" id="schuldNeu">${L("schuldHinzufuegen")}</button></div>`}
+  ${!S.schulden.length&&!schuldForm?`<p class="finfo" style="margin:-6px 0 0">${L("keineSchulden")}</p>`:""}`;
+}
+
 function erfolge(){
   const zustand=berechneErfolge();
   return`<div class="karte"><h2>${L("deineErfolge")}</h2>
@@ -1203,8 +1355,8 @@ function render(){
    </div>
    <div class="datum">${WOT[lang][heute.getDay()]}, ${L("datumFormat")(heute.getDate(),MONL[lang][heute.getMonth()])}</div></div>
    <div class="badge">${L("badgeWoche")(z.wom,z.womT)}</div></div>${bald}
-   ${settingsOffen?einstellungen():(tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="referenz"?referenz(z):budgets())}`;
-  document.getElementById("nav").innerHTML=[["erfassen",L("navErfassen")],["faellig",L("navFaellig")],["referenz",L("navReferenz")],["budgets",L("navBudgets")]]
+   ${settingsOffen?einstellungen():(tab==="erfassen"?erfassen(z):tab==="faellig"?faellig(z):tab==="schulden"?schulden():tab==="referenz"?referenz(z):budgets())}`;
+  document.getElementById("nav").innerHTML=[["erfassen",L("navErfassen")],["faellig",L("navFaellig")],["schulden",L("navSchulden")],["referenz",L("navReferenz")],["budgets",L("navBudgets")]]
    .map(([id,l])=>`<button class="${tab===id?"on":""}" data-tab="${id}">${l}</button>`).join("");
   binden();
 }
@@ -1324,6 +1476,49 @@ function binden(){
     S.abos.push(eintrag);sichern();
     manAboName="";manAboBetrag="";manAboZyklus="monat";manAboDatum=isoDatum(new Date());
     render();toast(L("tAboHinzugefuegt"))};
+  const sn=document.getElementById("schuldNeu");
+  if(sn)sn.onclick=()=>{schuldForm=neueSchuldForm();render()};
+  const sa=document.getElementById("schuldAbbrechen");
+  if(sa)sa.onclick=()=>{schuldForm=null;render()};
+  document.querySelectorAll("[data-schuld-modus]").forEach(b=>b.onclick=()=>{schuldForm.modus=b.dataset.schuldModus;render()});
+  document.querySelectorAll("[data-schuld-zyklus]").forEach(b=>b.onclick=()=>{schuldForm.zyklus=b.dataset.schuldZyklus;render()});
+  const sName=document.getElementById("schuldName");
+  if(sName)sName.oninput=e=>{schuldForm.name=e.target.value};
+  const sRest=document.getElementById("schuldRestbetrag");
+  if(sRest)sRest.oninput=e=>{schuldForm.restbetrag=e.target.value};
+  const sAlsAm=document.getElementById("schuldAlsAm");
+  if(sAlsAm)sAlsAm.onchange=e=>{schuldForm.alsAmDatum=e.target.value};
+  const sGesamt=document.getElementById("schuldGesamtbetrag");
+  if(sGesamt)sGesamt.oninput=e=>{schuldForm.gesamtbetrag=e.target.value};
+  const sStart=document.getElementById("schuldStart");
+  if(sStart)sStart.onchange=e=>{schuldForm.startDatum=e.target.value};
+  const sZins=document.getElementById("schuldSollzins");
+  if(sZins)sZins.oninput=e=>{schuldForm.sollzins=e.target.value};
+  const sRate=document.getElementById("schuldRate");
+  if(sRate)sRate.oninput=e=>{schuldForm.rate=e.target.value};
+  const sZusatz=document.getElementById("schuldZusatz");
+  if(sZusatz)sZusatz.oninput=e=>{schuldForm.zusatzkosten=e.target.value};
+  const sSpeichern=document.getElementById("schuldSpeichern");
+  if(sSpeichern)sSpeichern.onclick=()=>{
+    const f=schuldForm,name=f.name.trim();
+    const sollzins=parseFloat(f.sollzins.replace(",","."))||0;
+    const rate=parseFloat(f.rate.replace(",","."))||0;
+    const zusatzkosten=parseFloat((f.zusatzkosten||"0").replace(",","."))||0;
+    if(!name||rate<=0)return;
+    const datumTs=ds=>{const[jj,mm,tt]=ds.split("-").map(Number);return new Date(jj,mm-1,tt,12,0,0).getTime()};
+    const eintrag={id:"schuld"+Date.now(),name,modus:f.modus,sollzins,rate,zusatzkosten,zyklus:f.zyklus};
+    if(f.modus==="rest"){
+      const restbetrag=parseFloat(f.restbetrag.replace(",","."))||0;
+      if(restbetrag<=0)return;
+      eintrag.restbetrag=restbetrag;eintrag.alsAmDatum=datumTs(f.alsAmDatum);
+    }else{
+      const gesamtbetrag=parseFloat(f.gesamtbetrag.replace(",","."))||0;
+      if(gesamtbetrag<=0)return;
+      eintrag.gesamtbetrag=gesamtbetrag;eintrag.startDatum=datumTs(f.startDatum);
+    }
+    S.schulden.push(eintrag);sichern();schuldForm=null;render();toast(L("tSchuldHinzugefuegt"))};
+  document.querySelectorAll("[data-schuld-loeschen]").forEach(b=>b.onclick=()=>{
+    S.schulden=S.schulden.filter(x=>x.id!==b.dataset.schuldLoeschen);sichern();render()});
 }
 
 function bindenLoeschen(){
