@@ -124,6 +124,13 @@ ul.liste{list-style:none;padding:0;margin:0}
 .zahlfeld{width:92px;text-align:right;border:1px solid var(--linie);border-radius:10px;
   background:var(--bg);padding:9px;font-variant-numeric:tabular-nums;font-size:17px;
   font-weight:650;color:var(--tinte);font-family:inherit;flex:none}
+.ref-input{width:44px;border:none;border-bottom:1px dashed var(--grau);background:transparent;
+  text-align:right;font:inherit;color:inherit;padding:0 0 1px;font-variant-numeric:tabular-nums}
+.ref-input:focus{outline:none;border-bottom-color:var(--tinte)}
+.typ-umschalter{display:flex;gap:8px;margin-bottom:14px}
+.typ-umschalter button{flex:1;padding:10px;border-radius:11px;border:1px solid var(--linie);
+  background:var(--bg);color:var(--grau);font-family:inherit;font-weight:600;font-size:13px;cursor:pointer}
+.typ-umschalter button.on{background:var(--tinte);color:var(--auf-tinte);border-color:var(--tinte)}
 .gross{font-size:44px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;margin:6px 0}
 textarea.feld{min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--navbg);
@@ -145,15 +152,15 @@ nav button.on{color:var(--tinte);box-shadow:inset 0 2px 0 var(--tinte)}
 <script>
 /* ═══ Stammdaten ═══════════════════════════════════════════ */
 const KAT=[
- {id:"lebensmittel",topf:"w_lebensmittel",ref:120},
- {id:"auswaerts",topf:"w_auswaerts",ref:80},
- {id:"shopping",topf:"m_shopping",ref:150},
- {id:"freizeit",topf:"m_freizeit",ref:60},
- {id:"geschenke",topf:null,ref:0},
- {id:"haushalt",topf:null,ref:40},
- {id:"transport",topf:null,ref:50},
- {id:"gesundheit",topf:null,ref:30},
- {id:"sonstiges",topf:null,ref:0}];
+ {id:"lebensmittel",topf:"w_lebensmittel"},
+ {id:"auswaerts",topf:"w_auswaerts"},
+ {id:"shopping",topf:"m_shopping"},
+ {id:"freizeit",topf:"m_freizeit"},
+ {id:"geschenke",topf:null},
+ {id:"haushalt",topf:null},
+ {id:"transport",topf:null},
+ {id:"gesundheit",topf:null},
+ {id:"sonstiges",topf:null}];
 
 const KATLABEL={
  de:{lebensmittel:"Lebensmittel",auswaerts:"Auswärts & Kaffee",shopping:"Shopping",freizeit:"Freizeit & Events",
@@ -161,17 +168,7 @@ const KATLABEL={
  en:{lebensmittel:"Groceries",auswaerts:"Eating out & coffee",shopping:"Shopping",freizeit:"Leisure & events",
   geschenke:"Gifts & occasions",haushalt:"Drugstore & household",transport:"Transport",gesundheit:"Health",sonstiges:"Other"}};
 
-/* Beispielwerte — Startbelegung für neue Installationen, danach in S.fix gespeichert und über "Alles löschen" entfernbar */
-const FIX_STANDARD=[
- {key:"miete",betrag:900,typ:"monat",tag:1},
- {key:"handy",betrag:40,typ:"monat",tag:2},
- {key:"strom",betrag:45,typ:"monat",tag:1},
- {key:"ticket",betrag:60,typ:"monat",tag:1},
- {key:"versicherung",betrag:25,typ:"monat",tag:2},
- {key:"fitness",betrag:40,typ:"monat",tag:1},
- {key:"streaming",betrag:15,typ:"monat",tag:2},
- {key:"rundfunk",betrag:55,typ:"quartal",monate:[2,5,8,11],tag:15}];
-
+/* FIXLABEL bleibt als Übersetzungstabelle nutzbar, falls Fixkosten je mit festem key statt freiem Namen angelegt werden */
 const FIXLABEL={
  de:{miete:"Miete",handy:"Handy & Internet",strom:"Strom",ticket:"Nahverkehrsticket",versicherung:"Versicherung",
   fitness:"Fitnessstudio",streaming:"Streaming-Abos",rundfunk:"Rundfunkbeitrag"},
@@ -211,8 +208,12 @@ const T={
   deineAbos:"Deine Abos",monatlich:"monatlich",quartalsweise:"quartalsweise",endetAm:d=>`endet ${d}`,
   alsNaechstesFaellig:"Als Nächstes fällig",einmalig:"einmalig",
   inTagen:n=>`in ${n} Tagen`,inT:n=>`in ${n} T`,
-  deinSchnitt:"Dein Schnitt",
-  schnittText:"Referenzwerte aus deinen eigenen Kontoauszügen, daneben was du diesen Monat gebucht hast. Trage deine Werte oben in den Konstanten (KAT) ein.",
+  deinSchnitt:"Dein Schnitt",nochKeineDaten:"noch keine Daten",
+  saldoHeading:"Saldo diesen Monat",
+  saldoText:"Einnahmen minus Ausgaben — für Geld, das unerwartet reinkommt, buche es oben als Einnahme statt als Ausgabe.",
+  einnahmenMonat:"Einnahmen",ausgabenMonat:"Ausgaben",saldoMonat:"Bleibt",
+  einnahme:"Einnahme",notizEinnahmePlaceholder:"Notiz, z. B. Rückerstattung",
+  schnittText:"Median aus deinen abgeschlossenen Monaten, daneben was du diesen Monat gebucht hast. Der Wert nach dem Schrägstrich lässt sich direkt antippen und überschreiben.",
   monatsvergleich:"Monatsvergleich",
   monatsvergleichText:"Diese Kategorie diesen Monat im Vergleich zum letzten — Pfeil nach oben heißt mehr ausgegeben als im Vormonat.",
   wochenrueckblick:m=>`Wochenrückblick ${m}`,
@@ -278,8 +279,12 @@ const T={
   deineAbos:"Your subscriptions",monatlich:"monthly",quartalsweise:"quarterly",endetAm:d=>`ends ${d}`,
   alsNaechstesFaellig:"Coming up",einmalig:"one-time",
   inTagen:n=>`in ${n} days`,inT:n=>`in ${n}d`,
-  deinSchnitt:"Your average",
-  schnittText:"Reference values from your own bank statements, next to what you've logged this month. Edit your numbers in the KAT constants above.",
+  deinSchnitt:"Your average",nochKeineDaten:"no data yet",
+  saldoHeading:"Balance this month",
+  saldoText:"Income minus expenses — for money that comes in unexpectedly, log it above as income instead of an expense.",
+  einnahmenMonat:"Income",ausgabenMonat:"Expenses",saldoMonat:"Left over",
+  einnahme:"Income",notizEinnahmePlaceholder:"Note, e.g. refund",
+  schnittText:"Median from your completed months, next to what you've logged this month. Tap the number after the slash to edit it directly.",
   monatsvergleich:"Month comparison",
   monatsvergleichText:"This category this month vs. last month — an upward arrow means you spent more than the month before.",
   wochenrueckblick:m=>`Weekly review — ${m}`,
@@ -388,7 +393,19 @@ function berechneErfolge(){
     monatgruen:monatGruen,rueckwirkend:!!S.marken.rueckwirkend,import:!!S.marken.import};
 }
 
-let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[]},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date());
+function referenzWert(katId){
+  if(S.refUeberschreibung&&S.refUeberschreibung[katId]!=null)return S.refUeberschreibung[katId];
+  const aktMonat=mk(new Date()),monate={};
+  S.eintraege.filter(e=>e.typ!=="einnahme"&&e.kat===katId).forEach(e=>{
+    const m=mk(new Date(e.ts));
+    if(m===aktMonat)return;
+    monate[m]=(monate[m]||0)+e.betrag;
+  });
+  const werte=Object.values(monate).sort((a,b)=>a-b);
+  return werte.length?werte[Math.floor(werte.length/2)]:null;
+}
+
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null;
 let aboVorschlaege=null;
 let loeschenBestaetigen=false;
@@ -409,14 +426,13 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
     const d=new Date(heute);d.setDate(d.getDate()+s.tsRel);
     return{id:"seed"+i,ts:d.getTime(),betrag:s.betrag,kat:s.kat,notiz:s.notiz}
   }).sort((a,b)=>b.ts-a.ts);
-  S.fix=[...FIX_STANDARD];
   sichern();
 }
 function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}catch(e){toast(L("tSpeichernFehlgeschlagen"))}}
@@ -445,11 +461,12 @@ function istDuplikat(datum,betrag){
 function erkenneAbos(){
   const gruppen={};
   S.eintraege.forEach(e=>{
+    if(e.typ==="einnahme")return;
     const key=normalisiere(e.notiz);
     if(!key)return;
     (gruppen[key]=gruppen[key]||[]).push(e);
   });
-  const bekannt=new Set([...S.fix.map(f=>normalisiere(fl(f.key))),...S.abos.map(a=>normalisiere(a.name))]);
+  const bekannt=new Set([...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name))]);
   const vorschlaege=[];
   Object.entries(gruppen).forEach(([key,posten])=>{
     if(posten.length<3||bekannt.has(key))return;
@@ -518,7 +535,7 @@ function naechste(f,h){
 function rechne(){
   const now=new Date(),ws=wstart(now).getTime(),m=mk(now);
   const inW=S.eintraege.filter(e=>e.ts>=ws),inM=S.eintraege.filter(e=>mk(new Date(e.ts))===m);
-  const s=(a,k)=>a.filter(e=>!k||e.kat===k).reduce((x,e)=>x+e.betrag,0);
+  const s=(a,k)=>a.filter(e=>e.typ!=="einnahme"&&(!k||e.kat===k)).reduce((x,e)=>x+e.betrag,0);
   const tag=now.getDate(),tage=tim(now),wtag=((now.getDay()+6)%7)+1;
   const wom=wocheDesMonats(now),womT=wochenImMonat(now);
   const toepfe=[
@@ -552,23 +569,28 @@ function erfassen(z){
   const a=KAT.find(k=>k.id===kat),t=z.toepfe.find(x=>x.id===a.topf);
   const b=parseFloat(wert.replace(",","."))||0;
   const danach=t?t.budget-t.ist-b:null;
+  const istEinnahme=eintragTyp==="einnahme";
   return`<div class="hero">${z.toepfe.slice(0,2).map(topfHTML).join("")}</div>
   <div class="karte">
+   <div class="typ-umschalter">
+    <button class="${istEinnahme?"":"on"}" data-typ="ausgabe">${L("ausgabe")}</button>
+    <button class="${istEinnahme?"on":""}" data-typ="einnahme">${L("einnahme")}</button>
+   </div>
    <div class="eingabe"><span class="eingabe-z">${wert===""?"0":esc(wert)}</span><span class="eingabe-e">€</span></div>
-   <div class="chips">${KAT.map(k=>`<button class="chip${k.id===kat?" on":""}" data-kat="${k.id}">${kl(k.id)}</button>`).join("")}</div>
-   ${!a.topf?`<p class="finfo" style="margin:-6px 0 14px">${L("geschenkeHinweis")}</p>`:""}
-   <input class="feld" id="notiz" placeholder="${L("notizPlaceholder")}" value="${esc(notiz)}">
+   ${istEinnahme?"":`<div class="chips">${KAT.map(k=>`<button class="chip${k.id===kat?" on":""}" data-kat="${k.id}">${kl(k.id)}</button>`).join("")}</div>`}
+   ${!istEinnahme&&!a.topf?`<p class="finfo" style="margin:-6px 0 14px">${L("geschenkeHinweis")}</p>`:""}
+   <input class="feld" id="notiz" placeholder="${istEinnahme?L("notizEinnahmePlaceholder"):L("notizPlaceholder")}" value="${esc(notiz)}">
    <input class="feld" id="datum" type="date" value="${datum}" max="${isoDatum(new Date())}" style="margin-top:-6px">
    <div class="pad">${["1","2","3","4","5","6","7","8","9",",","0","back"].map(x=>`<button class="taste" data-t="${x}">${x==="back"?"⌫":x}</button>`).join("")}</div>
-   ${b>0&&danach!==null?`<div class="vorschau${danach<0?" rot":""}">${danach<0?L("danachUeber")(-danach):L("danachBleiben")(danach)}</div>`:""}
+   ${!istEinnahme&&b>0&&danach!==null?`<div class="vorschau${danach<0?" rot":""}">${danach<0?L("danachUeber")(-danach):L("danachBleiben")(danach)}</div>`:""}
    <button class="primaer" id="buchen"${b<=0?" disabled":""}>${L("buchen")}</button>
   </div>
   <div class="karte"><h2>${L("monatstoepfe")}</h2>${z.toepfe.slice(2).map(topfHTML).join("")}</div>
   ${S.eintraege.length?`<div class="karte"><h2>${L("zuletzt")}</h2><ul class="liste">${S.eintraege.slice(0,15).map(e=>{
-    const k=KAT.find(x=>x.id===e.kat),d=new Date(e.ts);
-    return`<li class="zeile"><span class="punkt" data-k="${e.kat}"></span>
-    <span class="zeile-h">${esc(e.notiz||(k?kl(k.id):L("ausgabe")))}<span class="zeile-n">${k?kl(k.id):""} · ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.</span></span>
-    <span class="wert">${f2(e.betrag)}</span><button class="weg" data-del="${e.id}">×</button></li>`}).join("")}</ul></div>`:""}`;
+    const k=KAT.find(x=>x.id===e.kat),d=new Date(e.ts),ein=e.typ==="einnahme";
+    return`<li class="zeile"><span class="punkt" ${ein?`style="background:var(--gruen)"`:`data-k="${e.kat}"`}></span>
+    <span class="zeile-h">${esc(e.notiz||(ein?L("einnahme"):(k?kl(k.id):L("ausgabe"))))}<span class="zeile-n">${ein?L("einnahme"):(k?kl(k.id):"")} · ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.</span></span>
+    <span class="wert"${ein?` style="color:var(--gruen)"`:""}">${ein?"+":""}${f2(e.betrag)}</span><button class="weg" data-del="${e.id}">×</button></li>`}).join("")}</ul></div>`:""}`;
 }
 
 function faellig(z){
@@ -605,23 +627,31 @@ function erfolge(){
 
 function referenz(z){
   const heute=new Date();
+  const trackKat=KAT.filter(k=>k.id!=="geschenke"&&k.id!=="sonstiges");
   const rb=wochenListe(heute).map((w,i)=>{
     const von=w.start.getTime(),bis=w.ende.getTime()+86399999;
-    const posten=S.eintraege.filter(e=>e.ts>=von&&e.ts<=bis);
+    const posten=S.eintraege.filter(e=>e.ts>=von&&e.ts<=bis&&e.typ!=="einnahme");
     const summe=posten.reduce((s,e)=>s+e.betrag,0);
     return{...w,nr:i+1,summe,anzahl:posten.length,aktuell:heute>=w.start&&heute<=w.ende};
   });
   const vormonat=new Date(heute.getFullYear(),heute.getMonth()-1,1),vmKey=mk(vormonat);
   const vmSumme=id=>S.eintraege.filter(e=>e.kat===id&&mk(new Date(e.ts))===vmKey).reduce((s,e)=>s+e.betrag,0);
-  return`<div class="karte"><h2>${L("deinSchnitt")}</h2>
+  const monatEinnahmen=S.eintraege.filter(e=>e.typ==="einnahme"&&mk(new Date(e.ts))===mk(heute)).reduce((s,e)=>s+e.betrag,0);
+  const saldo=monatEinnahmen-z.monatGesamt;
+  return`<div class="karte"><h2>${L("saldoHeading")}</h2>
+   <p class="text">${L("saldoText")}</p>
+   <div class="reihe"><span>${L("einnahmenMonat")}</span><span class="wert">${f0(monatEinnahmen)} €</span></div>
+   <div class="reihe"><span>${L("ausgabenMonat")}</span><span class="wert">${f0(z.monatGesamt)} €</span></div>
+   <div class="reihe stark"><span>${L("saldoMonat")}</span><span class="wert" style="color:${saldo<0?"var(--rot)":"var(--gruen)"}">${saldo>=0?"+":""}${f0(saldo)} €</span></div></div>
+  <div class="karte"><h2>${L("deinSchnitt")}</h2>
    <p class="text">${L("schnittText")}</p>
-   ${KAT.filter(k=>k.ref>0).map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe;
+   ${trackKat.map(k=>{const ist=z.proKat.find(x=>x.id===k.id).summe,ref=referenzWert(k.id);
    return`<div class="vert"><div class="vert-kopf"><span><span class="punkt" data-k="${k.id}"></span>${kl(k.id)}</span>
-   <span class="wert">${f0(ist)} / ${f0(k.ref)} €</span></div>
-   <div class="spur"><div class="fuell" style="width:${Math.min(100,ist/k.ref*100)}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>
+   <span class="wert">${f0(ist)} € / <input class="ref-input" type="text" inputmode="decimal" data-ref="${k.id}" value="${ref==null?"":f0(ref)}" placeholder="${L("nochKeineDaten")}"> €</span></div>
+   <div class="spur"><div class="fuell" style="width:${ref?Math.min(100,ist/ref*100):0}%;background:var(--tinte)"></div></div></div>`}).join("")}</div>
   <div class="karte"><h2>${L("monatsvergleich")}</h2>
    <p class="text">${L("monatsvergleichText")}</p>
-   ${KAT.filter(k=>k.ref>0).map(k=>{
+   ${trackKat.map(k=>{
      const jetzt=z.proKat.find(x=>x.id===k.id).summe,vorher=vmSumme(k.id),delta=jetzt-vorher;
      const pfeil=delta>0?"▲":delta<0?"▼":"–",farbe=delta>0?"var(--rot)":delta<0?"var(--gruen)":"var(--grau)";
      return`<div class="reihe"><span>${kl(k.id)}</span><span class="wert">${f0(jetzt)} € <span style="color:${farbe};font-weight:600">${pfeil} ${f0(Math.abs(delta))} €</span></span></div>`;
@@ -751,13 +781,17 @@ function binden(){
   if(n)n.oninput=e=>{notiz=e.target.value};
   const da=document.getElementById("datum");
   if(da)da.onchange=e=>{datum=e.target.value||isoDatum(new Date())};
+  document.querySelectorAll("[data-typ]").forEach(b=>b.onclick=()=>{eintragTyp=b.dataset.typ;render()});
   const bu=document.getElementById("buchen");
   if(bu)bu.onclick=()=>{
     const b=parseFloat(wert.replace(",","."))||0;if(b<=0)return;
     const[jj,mm,tt]=datum.split("-").map(Number),ts=new Date(jj,mm-1,tt,12,0,0).getTime();
     if(datum!==isoDatum(new Date()))S.marken.rueckwirkend=true;
-    if(notiz.trim())S.gelernt[normalisiere(notiz)]=kat;
-    S.eintraege.push({id:Date.now().toString(36),ts,betrag:b,kat,notiz:notiz.trim()});
+    const istEinnahme=eintragTyp==="einnahme";
+    if(!istEinnahme&&notiz.trim())S.gelernt[normalisiere(notiz)]=kat;
+    S.eintraege.push(istEinnahme
+      ?{id:Date.now().toString(36),ts,betrag:b,kat:null,typ:"einnahme",notiz:notiz.trim()}
+      :{id:Date.now().toString(36),ts,betrag:b,kat,notiz:notiz.trim()});
     S.eintraege.sort((x,y)=>y.ts-x.ts);
     sichern();wert="";notiz="";datum=isoDatum(new Date());render();toast(L("tGebucht"))};
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
@@ -769,6 +803,11 @@ function binden(){
     theme=b.dataset.themeSet;localStorage.setItem("kontur:theme",theme);themeAnwenden();render()});
   document.querySelectorAll("[data-lang-set]").forEach(b=>b.onclick=()=>{
     lang=b.dataset.langSet;localStorage.setItem("kontur:lang",lang);render()});
+  document.querySelectorAll("[data-ref]").forEach(inp=>inp.onchange=e=>{
+    const v=parseFloat(e.target.value.replace(",","."));
+    S.refUeberschreibung=S.refUeberschreibung||{};
+    if(!isNaN(v)&&v>0)S.refUeberschreibung[inp.dataset.ref]=v;else delete S.refUeberschreibung[inp.dataset.ref];
+    sichern();render()});
   const ex=document.getElementById("export");
   if(ex)ex.onclick=()=>{
     const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
@@ -780,7 +819,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[]};sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{}};sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -805,7 +844,7 @@ function binden(){
 function bindenLoeschen(){
   const ja=document.getElementById("loeschenJa");
   if(ja)ja.onclick=()=>{
-    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[]};
+    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{}};
     loeschenBestaetigen=false;sichern();tab="erfassen";render();toast(L("tAllesGeloescht"))};
   const ab=document.getElementById("loeschenAbbrechen");
   if(ab)ab.onclick=()=>{loeschenBestaetigen=false;render()};
