@@ -255,6 +255,11 @@ const T={
   tKeineZeilen:"Keine Zeilen gefunden",tSpalteNichtErkannt:"Datum- oder Betrag-Spalte nicht erkannt",
   tKeineAusgaben:"Keine Ausgaben gefunden (nur Eingänge?)",tImportiert:n=>`${n} importiert`,
   moeglichesDuplikat:"evtl. schon drin",
+  diagKeinHeader:"Keine Kopfzeile mit Datum- und Betrags-Spalte gefunden. Erste Zeilen der Datei:",
+  diagKeineSpalten:h=>`Kopfzeile erkannt: ${h} — aber keine Datum- oder Betrags-Spalte darin gefunden.`,
+  diagKeineAusgaben:h=>`Kopfzeile erkannt: ${h}, Spalten zugeordnet, aber keine Ausgaben (negative Beträge) gefunden.`,
+  diagErsteZeile:"Erste Datenzeile",
+  aeltereAusgeblendet:n=>`${n} ältere Buchungen ausgeblendet (nur letzte 30 Tage gezeigt).`,alleAnzeigen:"Alle anzeigen",
   wiederkehrendeErkennen:"Wiederkehrende erkennen",tKeineAbosErkannt:"Keine wiederkehrenden Zahlungen gefunden",
   aboErkannt:"Wiederkehrende Zahlungen erkannt",
   aboErkanntText:n=>`${n} mögliche Abos gefunden — anhand von mindestens drei ähnlichen Buchungen über verschiedene Monate. Prüfen und übernehmen.`,
@@ -328,6 +333,11 @@ const T={
   tKeineZeilen:"No rows found",tSpalteNichtErkannt:"Couldn't detect date or amount column",
   tKeineAusgaben:"No expenses found (income only?)",tImportiert:n=>`${n} imported`,
   moeglichesDuplikat:"maybe already logged",
+  diagKeinHeader:"No header row with both a date and amount column found. First lines of the file:",
+  diagKeineSpalten:h=>`Header row found: ${h} — but no date or amount column in it.`,
+  diagKeineAusgaben:h=>`Header row found: ${h}, columns mapped, but no expenses (negative amounts) found.`,
+  diagErsteZeile:"First data row",
+  aeltereAusgeblendet:n=>`${n} older entries hidden (showing only the last 30 days).`,alleAnzeigen:"Show all",
   wiederkehrendeErkennen:"Detect recurring",tKeineAbosErkannt:"No recurring payments found",
   aboErkannt:"Recurring payments detected",
   aboErkanntText:n=>`Found ${n} possible subscriptions — based on at least three similar entries across different months. Review and confirm.`,
@@ -410,7 +420,7 @@ function referenzWert(katId){
 }
 
 let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
-let importText="",importRows=null;
+let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0;
 let aboVorschlaege=null;
 let loeschenBestaetigen=false;
 let settingsOffen=false;
@@ -443,13 +453,13 @@ function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}ca
 function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("an");setTimeout(()=>e.classList.remove("an"),1400)}
 
 const AUTOKAT=[
- [/rewe|edeka|lidl|aldi|netto|kaufland|tegut|denns|basic ag|hofer/i,"lebensmittel"],
- [/dm-drogerie|dm drogerie markt|rossmann|müller|budni/i,"haushalt"],
- [/deutsche bahn|db vertrieb|mvv|vag |uber |free now|taxi|tankstelle|shell|aral|esso|dkv|deutschlandticket/i,"transport"],
- [/apotheke|arzt|zahnarzt|physio/i,"gesundheit"],
- [/restaurant|café|cafe |kaffee|bäckerei|baecker|imbiss|lieferando|mcdonald|burger king|kfc|pizza|döner|doener/i,"auswaerts"],
- [/zalando|amazon|h&m|hm de|zara|mediamarkt|saturn/i,"shopping"],
- [/kino|spotify|netflix|disney|fitness|crossfit|fit\/one/i,"freizeit"],
+ [/\bedeka\b|edk\.?\s*e-?center|e-center|\brewe\b|\baldi\b|\blidl\b|\bnetto\b|\bkaufland\b|\btegut\b|\bdenns\b|\bbasic\b|\bhofer\b/i,"lebensmittel"],
+ [/\bdm\b|dm-drogerie|dm drogerie|\brossmann\b|\bmüller\b|\bbudni\b/i,"haushalt"],
+ [/deutsche bahn|db vertrieb|\bmvv\b|\bvag\b|\buber\b|free now|\btaxi\b|tankstelle|\bshell\b|\baral\b|\besso\b|\bdkv\b|deutschlandticket/i,"transport"],
+ [/apotheke|\barzt\b|zahnarzt|physio/i,"gesundheit"],
+ [/restaurant|café|\bcafe\b|kaffee|bäckerei|baecker|der beck|brezen kolb|roesttrommel|röstrommel|imbiss|lieferando|mcdonald|burger king|\bkfc\b|pizza|döner|doener/i,"auswaerts"],
+ [/zalando|amazon|\bh&m\b|\bhm\b|zara|mediamarkt|saturn/i,"shopping"],
+ [/kino|spotify|netflix|disney|fitness|crossfit|fit\s?one/i,"freizeit"],
  [/geschenk/i,"geschenke"]];
 function autoKategorie(text){
   const norm=normalisiere(text);
@@ -458,9 +468,28 @@ function autoKategorie(text){
   for(const[re,kat]of AUTOKAT)if(re.test(t))return kat;
   return "sonstiges";
 }
-function istDuplikat(datum,betrag){
+function bereinigeHaendler(partner,zweck){
+  const z=(zweck||"").trim(),p=(partner||"").trim(),pLower=p.toLowerCase();
+  let name;
+  if(pLower.includes("abrechnung karte")){
+    name=z.split("//")[0];
+  }else{
+    const m=z.match(/(?:ihr einkauf bei|purchase at)\s+(.+)/i);
+    if(m&&(pLower.includes("paypal")||pLower.includes("klarna")))name=m[1];
+    else name=p||z;
+  }
+  name=(name||"")
+    .replace(/\/\/.*/,"")
+    .replace(/\d{1,2}[-.]\d{1,2}[-.]\d{2,4}T[\d:]+.*/i,"")
+    .replace(/Kartennr\.?\s*\S+/i,"")
+    .replace(/[,;]\s*$/,"")
+    .trim();
+  return name||p||z||"";
+}
+function istDuplikat(datum,betrag,notiz){
   const tagStart=new Date(datum.getFullYear(),datum.getMonth(),datum.getDate()).getTime(),tagEnd=tagStart+86399999;
-  return S.eintraege.some(e=>e.ts>=tagStart&&e.ts<=tagEnd&&Math.abs(e.betrag-betrag)<0.01);
+  const notizNorm=normalisiere(notiz);
+  return S.eintraege.some(e=>e.ts>=tagStart&&e.ts<=tagEnd&&Math.abs(e.betrag-betrag)<0.01&&normalisiere(e.notiz)===notizNorm);
 }
 function erkenneAbos(){
   const gruppen={};
@@ -484,13 +513,27 @@ function erkenneAbos(){
   });
   return vorschlaege;
 }
+const DATUM_KEYWORDS=["buchungstag","wert","valuta","datum"];
+const BETRAG_KEYWORDS=["betrag","umsatz","soll","haben","amount"];
 function parseCSV(text){
-  const zeilen=text.split(/\r?\n/).map(z=>z.trim()).filter(z=>z.length);
-  if(!zeilen.length)return{header:[],rows:[]};
-  const delim=(zeilen[0].match(/;/g)||[]).length>=(zeilen[0].match(/,/g)||[]).length?";":",";
-  const teilen=z=>z.split(delim).map(c=>c.replace(/^"|"$/g,"").trim());
-  const header=teilen(zeilen[0]).map(h=>h.toLowerCase());
-  return{header,rows:zeilen.slice(1).map(teilen)};
+  const roh=String(text||"").replace(/^﻿/,"");
+  const zeilen=roh.split(/\r?\n/).map(z=>z.trim()).filter(z=>z.length);
+  if(!zeilen.length)return{header:[],rows:[],headerFehler:true,vorschauZeilen:[]};
+  let headerIdx=-1,delim=";";
+  for(let i=0;i<Math.min(zeilen.length,40);i++){
+    const semi=(zeilen[i].match(/;/g)||[]).length,komma=(zeilen[i].match(/,/g)||[]).length;
+    const testDelim=semi>=komma?";":",";
+    const felder=zeilen[i].split(testDelim).map(f=>f.trim().replace(/^"|"$/g,"").toLowerCase());
+    const hatDatum=felder.some(f=>DATUM_KEYWORDS.some(k=>f.includes(k)));
+    const hatBetrag=felder.some(f=>BETRAG_KEYWORDS.some(k=>f.includes(k)));
+    if(hatDatum&&hatBetrag&&felder.length>=3){headerIdx=i;delim=testDelim;break}
+  }
+  if(headerIdx===-1)return{header:[],rows:[],headerFehler:true,vorschauZeilen:zeilen.slice(0,8)};
+  const teilen=z=>z.split(delim).map(c=>c.trim().replace(/^"|"$/g,""));
+  const header=teilen(zeilen[headerIdx]).map(h=>h.toLowerCase());
+  const erwartet=header.length;
+  const rows=zeilen.slice(headerIdx+1).map(teilen).filter(r=>r.length===erwartet);
+  return{header,rows,rohHeader:zeilen[headerIdx],ersteDatenzeile:zeilen[headerIdx+1]||""};
 }
 function findSpalte(header,kandidaten){
   for(const k of kandidaten){const i=header.findIndex(h=>h.includes(k));if(i>=0)return i}
@@ -498,32 +541,50 @@ function findSpalte(header,kandidaten){
 }
 function parseBetragDE(s){
   if(!s)return NaN;
-  let t=s.replace(/[^\d,.\-]/g,"");
-  if(t.includes(",")&&t.includes("."))t=t.replace(/\./g,"").replace(",",".");
-  else if(t.includes(","))t=t.replace(",",".");
+  let t=String(s).trim().replace(/[^\d,.\-]/g,"");
+  if(!t)return NaN;
+  const komma=t.includes(","),punkt=t.includes(".");
+  if(komma&&punkt)t=t.replace(/\./g,"").replace(",",".");
+  else if(komma)t=t.replace(",",".");
+  else if(punkt)t=t.replace(/\./g,"");
   return parseFloat(t);
 }
 function parseDatumDE(s){
   if(!s)return null;
-  const m=s.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
+  const m=String(s).match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
   if(m){let[,t,mo,j]=m;if(j.length===2)j="20"+j;return new Date(+j,+mo-1,+t,12,0,0)}
-  const iso=s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  const iso=String(s).match(/(\d{4})-(\d{2})-(\d{2})/);
   if(iso){const[,j,mo,t]=iso;return new Date(+j,+mo-1,+t,12,0,0)}
   return null;
 }
 function csvEinlesen(){
-  const{header,rows}=parseCSV(importText);
-  if(!rows.length){toast(L("tKeineZeilen"));return}
-  const iDatum=findSpalte(header,["buchungstag","valuta","datum"]);
-  const iBetrag=findSpalte(header,["betrag","umsatz"]);
-  const iText=findSpalte(header,["verwendungszweck","buchungstext","empfänger","empfaenger","begünstigter","zahlungsempf","name"]);
-  if(iDatum<0||iBetrag<0){toast(L("tSpalteNichtErkannt"));return}
-  const geparst=rows.map(r=>({datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),text:iText>=0?r[iText]:""}))
-    .filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag<0);
-  if(!geparst.length){toast(L("tKeineAusgaben"));return}
-  importRows=geparst.map((r,i)=>{
-    const dup=istDuplikat(r.datum,Math.abs(r.betrag));
-    return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:(r.text||"").slice(0,60),kat:autoKategorie(r.text),drin:!dup,dup};
+  importFehler=null;
+  const{header,rows,headerFehler,vorschauZeilen,rohHeader,ersteDatenzeile}=parseCSV(importText);
+  if(headerFehler||!header.length){
+    importFehler={typ:"header",zeilen:vorschauZeilen||[]};render();return;
+  }
+  const iDatum=findSpalte(header,DATUM_KEYWORDS);
+  const iBetrag=findSpalte(header,BETRAG_KEYWORDS);
+  const iText=findSpalte(header,["verwendungszweck","buchungstext","beschreibung"]);
+  const iPartner=findSpalte(header,["begünstigter","beguenstigter","empfänger","empfaenger","zahlungspflicht","auftraggeber"]);
+  if(!rows.length||iDatum<0||iBetrag<0){
+    importFehler={typ:"spalten",header,ersteDatenzeile:ersteDatenzeile||(rows[0]?rows[0].join(" | "):"")};render();return;
+  }
+  const geparst=rows.map(r=>{
+    const partner=iPartner>=0?r[iPartner]:"",zweck=iText>=0?r[iText]:"";
+    return{datum:parseDatumDE(r[iDatum]),betrag:parseBetragDE(r[iBetrag]),haendler:bereinigeHaendler(partner,zweck)};
+  }).filter(r=>r.datum&&!isNaN(r.betrag)&&r.betrag<0);
+  if(!geparst.length){
+    importFehler={typ:"keineAusgaben",header,ersteDatenzeile:ersteDatenzeile||(rows[0]?rows[0].join(" | "):"")};render();return;
+  }
+  const vor30=new Date();vor30.setDate(vor30.getDate()-30);vor30.setHours(0,0,0,0);
+  const imFenster=geparst.filter(r=>r.datum>=vor30);
+  importAlleGeparst=geparst;
+  const nutze=imFenster.length?imFenster:geparst;
+  importVersteckteAnzahl=geparst.length-nutze.length;
+  importRows=nutze.map((r,i)=>{
+    const dup=istDuplikat(r.datum,Math.abs(r.betrag),r.haendler);
+    return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),kat:autoKategorie(r.haendler),drin:!dup,dup};
   });
   render();
 }
@@ -704,7 +765,8 @@ function budgets(){
    <p class="finfo" style="text-align:center;margin:10px 0">${L("oder")}</p>
    <textarea class="feld" id="csvfeld" placeholder="${L("csvPlaceholder")}">${esc(importText)}</textarea>
    <button class="sekundaer" id="csvEinlesen">${L("einlesen")}</button>
-   <button class="sekundaer" id="aboErkennen">${L("wiederkehrendeErkennen")}</button></div>
+   <button class="sekundaer" id="aboErkennen">${L("wiederkehrendeErkennen")}</button>
+   ${importFehler?`<p class="finfo" style="background:var(--bg);border-radius:10px;padding:10px;margin-top:12px;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.6">${esc(diagnoseText(importFehler))}</p>`:""}</div>
   <div class="karte"><h2>${L("datenSichern")}</h2>
    <p class="text">${L("datenSichernText")}</p>
    <button class="sekundaer" id="export">${L("alsDateiExportieren")}</button>
@@ -714,10 +776,19 @@ function budgets(){
    <button class="sekundaer" id="allesLoeschen" style="border-color:var(--rot);color:var(--rot);margin-top:18px">${L("allesLoeschen")}</button></div>`;
 }
 
+function diagnoseText(f){
+  if(f.typ==="header")return L("diagKeinHeader")+"\n\n"+(f.zeilen||[]).map((z,i)=>(i+1)+": "+z).join("\n");
+  const kopf=(f.header||[]).join(" | ");
+  if(f.typ==="spalten")return L("diagKeineSpalten")(kopf)+"\n\n"+L("diagErsteZeile")+": "+(f.ersteDatenzeile||"—");
+  if(f.typ==="keineAusgaben")return L("diagKeineAusgaben")(kopf)+"\n\n"+L("diagErsteZeile")+": "+(f.ersteDatenzeile||"—");
+  return "";
+}
+
 function importAnsicht(){
   const n=importRows.filter(r=>r.drin).length;
   return`<div class="karte"><h2>${L("importPruefen")}</h2>
    <p class="text">${L("importText")(importRows.length)}</p>
+   ${importVersteckteAnzahl>0?`<p class="finfo" style="margin:-6px 0 14px">${L("aeltereAusgeblendet")(importVersteckteAnzahl)} <button class="iconbtn" id="impAlleAnzeigen" style="text-decoration:underline;width:auto;height:auto;display:inline;color:var(--tinte);padding:0">${L("alleAnzeigen")}</button></p>`:""}
    <ul class="liste">${importRows.map(r=>`<li class="zeile">
     <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
     <span class="zeile-h">${esc(r.notiz||"—")}${r.dup?`<span class="flab warn">${L("moeglichesDuplikat")}</span>`:""}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
@@ -837,10 +908,15 @@ function binden(){
   const cd=document.getElementById("csvdatei");
   if(cd)cd.onchange=e=>{
     const datei=e.target.files[0];if(!datei)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{importText=String(ev.target.result||"");csvEinlesen()};
-    reader.onerror=()=>toast(L("tDateiNichtLesbar"));
-    reader.readAsText(datei,"UTF-8")};
+    const liesAls=(enc,fallback)=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const text=String(ev.target.result||"");
+        if(text.includes("�")&&fallback){liesAls(fallback,null);return}
+        importText=text;csvEinlesen()};
+      reader.onerror=()=>toast(L("tDateiNichtLesbar"));
+      reader.readAsText(datei,enc)};
+    liesAls("UTF-8","ISO-8859-1")};
   const ae=document.getElementById("aboErkennen");
   if(ae)ae.onclick=()=>{
     const v=erkenneAbos();
@@ -864,6 +940,14 @@ function bindenImport(){
     const r=importRows.find(x=>x.id===c.dataset.impCheck);r.drin=e.target.checked;render()});
   document.querySelectorAll("[data-imp-kat]").forEach(s=>s.onchange=e=>{
     const r=importRows.find(x=>x.id===s.dataset.impKat);r.kat=e.target.value});
+  const alle=document.getElementById("impAlleAnzeigen");
+  if(alle)alle.onclick=()=>{
+    importVersteckteAnzahl=0;
+    importRows=importAlleGeparst.map((r,i)=>{
+      const dup=istDuplikat(r.datum,Math.abs(r.betrag),r.haendler);
+      return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),kat:autoKategorie(r.haendler),drin:!dup,dup};
+    });
+    render()};
   const ok=document.getElementById("impBestaetigen");
   if(ok)ok.onclick=()=>{
     const neue=importRows.filter(r=>r.drin).map(r=>({id:"imp"+Date.now()+Math.random().toString(36).slice(2,6),ts:r.datum.getTime(),betrag:r.betrag,kat:r.kat,notiz:r.notiz}));
