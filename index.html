@@ -94,6 +94,8 @@ ul.liste{list-style:none;padding:0;margin:0}
 .punkt[data-k=lebensmittel]{background:#0E9F6E}.punkt[data-k=auswaerts]{background:#E0473E}
 .punkt[data-k=shopping]{background:#7C5CFF}.punkt[data-k=freizeit]{background:#F0A020}
 .punkt[data-k=transport]{background:#2E7CF6}.punkt[data-k=geschenke]{background:#D946A6}
+.punkt[data-k=haushalt]{background:#14B8A6}.punkt[data-k=gesundheit]{background:#84CC16}
+.punkt[data-k=sonstiges]{background:#9CA3AF}
 .reihe{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   padding:11px 0;border-bottom:1px solid var(--linie);font-size:13.5px}
 .reihe:last-child{border-bottom:none}
@@ -161,6 +163,9 @@ const KAT=[
  {id:"transport",topf:null},
  {id:"gesundheit",topf:null},
  {id:"sonstiges",topf:null}];
+
+const KAT_FARBEN={lebensmittel:"#0E9F6E",auswaerts:"#E0473E",shopping:"#7C5CFF",freizeit:"#F0A020",
+ geschenke:"#D946A6",haushalt:"#14B8A6",transport:"#2E7CF6",gesundheit:"#84CC16",sonstiges:"#9CA3AF"};
 
 const KATLABEL={
  de:{lebensmittel:"Lebensmittel",auswaerts:"Auswärts & Kaffee",shopping:"Shopping",freizeit:"Freizeit & Events",
@@ -244,6 +249,17 @@ const T={
   monatsvergleichText:"Diese Kategorie diesen Monat im Vergleich zum letzten — Pfeil nach oben heißt mehr ausgegeben als im Vormonat.",
   wochenrueckblick:m=>`Wochenrückblick ${m}`,
   wochenBudgetHinweis:b=>`Wochenbudget (Lebensmittel + Auswärts): ${b} € · nur diese Kategorien, ohne Fixkosten und Einzelposten ab 200 €.`,
+  kontoverlaufHeading:"Kontoverlauf",tage:"Tage",kontostandAktuell:"Aktueller Stand",
+  kontoverlaufText:d=>`Hochgerechnet aus dem importierten Kontostand vom ${d} und allen seither gebuchten Bewegungen.`,
+  kontoverlaufKeineDaten:"Noch kein Kontostand importiert — beim nächsten CSV-Import wird er automatisch mit erfasst, wenn die Datei ihn enthält.",
+  kategorienHeading:"Ausgaben nach Kategorie",kategorienText:"Letzte sechs Monate, gestapelt nach Kategorie.",
+  sparvorschlagHeading:"Sparpotenzial",
+  sparvorschlagText:"Grobe Schätzung, keine Vorgabe: Median-Einkommen minus Fixkosten minus laufende Budgets.",
+  sparPotenzial:"Geschätztes Sparpotenzial pro Monat",
+  sparHerleitung:(eink,fix,monate)=>`Median-Einkommen ${eink} € minus Fixkosten ${fix} € minus Budgets (bzw. tatsächliche Ausgaben, je nachdem was näherliegt) — aus ${monate}.`,
+  tatsaechlichUebrig:"Tatsächlich übrig geblieben (Median)",
+  sparRealitaetscheck:"Was in den letzten Monaten wirklich übrig blieb, unabhängig vom Budget — als Realitätscheck zur Schätzung oben.",
+  sparKeineDaten:"Noch nicht genug erfasstes Einkommen (mind. ein abgeschlossener Monat) für eine Schätzung.",
   rueckblickText:"Was pro Woche gebucht wurde — auch nachträglich erfasste Buchungen zählen hier in die richtige Woche.",
   aktuell:"aktuell",wocheLabel:"Woche",
   deineErfolge:"Deine Erfolge",
@@ -365,6 +381,17 @@ const T={
   monatsvergleichText:"This category this month vs. last month — an upward arrow means you spent more than the month before.",
   wochenrueckblick:m=>`Weekly review — ${m}`,
   wochenBudgetHinweis:b=>`Weekly budget (Lebensmittel + Auswärts): ${b} € · only these categories, excluding fixed costs and single items of 200 € or more.`,
+  kontoverlaufHeading:"Account balance",tage:"days",kontostandAktuell:"Current balance",
+  kontoverlaufText:d=>`Projected from the imported balance on ${d} plus every transaction booked since.`,
+  kontoverlaufKeineDaten:"No account balance imported yet — the next CSV import will pick it up automatically if the file contains one.",
+  kategorienHeading:"Spending by category",kategorienText:"Last six months, stacked by category.",
+  sparvorschlagHeading:"Savings potential",
+  sparvorschlagText:"A rough estimate, not a target: median income minus fixed costs minus current budgets.",
+  sparPotenzial:"Estimated monthly savings potential",
+  sparHerleitung:(eink,fix,monate)=>`Median income ${eink} € minus fixed costs ${fix} € minus budgets (or actual spend, whichever is closer) — from ${monate}.`,
+  tatsaechlichUebrig:"Actually left over (median)",
+  sparRealitaetscheck:"What was actually left over in recent months, regardless of budget — a reality check on the estimate above.",
+  sparKeineDaten:"Not enough recorded income yet (at least one completed month) for an estimate.",
   rueckblickText:"What got logged per week — entries added after the fact still land in the right week.",
   aktuell:"current",wocheLabel:"Week",
   deineErfolge:"Your achievements",
@@ -583,6 +610,7 @@ let offeneKategorie=null;
 let aboAnalyse=null;
 let loeschenBestaetigen=false;
 let schuldForm=null;
+let kontoverlaufFenster=30;
 let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
 let lang=localStorage.getItem("kontur:lang")||"de";
@@ -1169,6 +1197,97 @@ function erfolge(){
    }).join("")}</div></div>`;
 }
 
+function kontoverlaufDaten(fensterTage){
+  if(!S.kontostand)return null;
+  const bekanntTs=S.kontostand.datum,bekannterBetrag=S.kontostand.betrag;
+  const bewegungen=S.eintraege.map(e=>({ts:e.ts,delta:e.typ==="einnahme"?e.betrag:-e.betrag}));
+  const balanceAt=dEndTs=>{
+    let sum=0;
+    bewegungen.forEach(b=>{
+      if(dEndTs>=bekanntTs){if(b.ts>bekanntTs&&b.ts<=dEndTs)sum+=b.delta}
+      else{if(b.ts>dEndTs&&b.ts<=bekanntTs)sum-=b.delta}
+    });
+    return bekannterBetrag+sum;
+  };
+  const heute=new Date();heute.setHours(23,59,59,999);
+  const start=new Date(heute);start.setDate(start.getDate()-fensterTage+1);start.setHours(0,0,0,0);
+  const punkte=[];
+  for(let d=new Date(start);d<=heute;d.setDate(d.getDate()+1)){
+    const endeTag=new Date(d);endeTag.setHours(23,59,59,999);
+    punkte.push({ts:endeTag.getTime(),betrag:balanceAt(endeTag.getTime())});
+  }
+  return punkte;
+}
+function kontoverlaufSVG(punkte){
+  const w=600,h=170,pad=6;
+  const werte=punkte.map(p=>p.betrag);
+  const min=Math.min(0,...werte),max=Math.max(0,...werte),spanne=(max-min)||1;
+  const x=i=>pad+(i/(punkte.length-1))*(w-2*pad);
+  const y=v=>h-pad-((v-min)/spanne)*(h-2*pad);
+  const pfad=punkte.map((p,i)=>`${i===0?"M":"L"}${x(i).toFixed(1)},${y(p.betrag).toFixed(1)}`).join(" ");
+  const yNull=y(0),letzter=punkte[punkte.length-1].betrag,farbe=letzter<0?"var(--rot)":"var(--gruen)";
+  return`<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" style="display:block">
+   <line x1="0" y1="${yNull.toFixed(1)}" x2="${w}" y2="${yNull.toFixed(1)}" stroke="var(--linie)" stroke-width="1" stroke-dasharray="4 3"/>
+   <path d="${pfad}" fill="none" stroke="${farbe}" stroke-width="2"/></svg>`;
+}
+function monatsBalkenDaten(anzahlMonate){
+  const heute=new Date(),monate=[];
+  for(let i=anzahlMonate-1;i>=0;i--)monate.push(mk(new Date(heute.getFullYear(),heute.getMonth()-i,1)));
+  return monate.map(m=>{
+    const proKat={};KAT.forEach(k=>proKat[k.id]=0);
+    S.eintraege.filter(e=>e.typ!=="einnahme"&&mk(new Date(e.ts))===m).forEach(e=>{proKat[e.kat]=(proKat[e.kat]||0)+e.betrag});
+    const gesamt=Object.values(proKat).reduce((a,b)=>a+b,0);
+    return{monat:m,label:MONL[lang][parseInt(m.split("-")[1],10)-1],proKat,gesamt};
+  });
+}
+function stapelbalkenSVG(daten){
+  const w=600,h=190,padUnten=22,padOben=8,gap=14;
+  const maxGesamt=Math.max(1,...daten.map(d=>d.gesamt));
+  const barBreite=(w-gap*(daten.length+1))/daten.length;
+  let inhalt="";
+  daten.forEach((d,i)=>{
+    let yCursor=h-padUnten;
+    const x=gap+i*(barBreite+gap);
+    KAT.forEach(k=>{
+      const wert=d.proKat[k.id]||0;
+      if(!wert)return;
+      const hoehe=(wert/maxGesamt)*(h-padUnten-padOben);
+      yCursor-=hoehe;
+      inhalt+=`<rect x="${x.toFixed(1)}" y="${yCursor.toFixed(1)}" width="${barBreite.toFixed(1)}" height="${hoehe.toFixed(1)}" fill="${KAT_FARBEN[k.id]}" rx="2"/>`;
+    });
+    inhalt+=`<text x="${(x+barBreite/2).toFixed(1)}" y="${h-7}" text-anchor="middle" font-size="10" fill="var(--grau)">${d.label}</text>`;
+  });
+  return`<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="display:block">${inhalt}</svg>`;
+}
+
+function sparvorschlag(){
+  const heute=new Date(),aktMonat=mk(heute);
+  const proMonat=filterFn=>{
+    const sums={};
+    S.eintraege.filter(filterFn).forEach(e=>{
+      const m=mk(new Date(e.ts));if(m===aktMonat)return;
+      sums[m]=(sums[m]||0)+e.betrag;
+    });
+    return sums;
+  };
+  const einkommenProMonat=proMonat(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen");
+  const monate=Object.keys(einkommenProMonat).sort().slice(-3);
+  if(!monate.length)return null;
+  const einkommenMedian=median(monate.map(m=>einkommenProMonat[m]));
+  const fixkostenGesamt=[...S.fix,...S.abos].reduce((sum,f)=>sum+(f.typ==="quartal"?f.betrag/3:f.typ==="jahr"?f.betrag/12:f.betrag),0);
+  const budgetGesamt=(S.budget.w_lebensmittel||0)*4.35+(S.budget.w_auswaerts||0)*4.35+(S.budget.m_shopping||0)+(S.budget.m_freizeit||0);
+  const variableKat=["lebensmittel","auswaerts","shopping","freizeit"];
+  const variabelProMonat=proMonat(e=>e.typ!=="einnahme"&&variableKat.includes(e.kat));
+  const variabelIstMedian=median(monate.map(m=>variabelProMonat[m]||0));
+  const beiBudget=einkommenMedian-fixkostenGesamt-budgetGesamt;
+  const beiIst=einkommenMedian-fixkostenGesamt-variabelIstMedian;
+  const von=Math.min(beiBudget,beiIst),bis=Math.max(beiBudget,beiIst);
+  const ausgabenProMonat=proMonat(e=>e.typ!=="einnahme");
+  const tatsaechlichMedian=median(monate.map(m=>(einkommenProMonat[m]||0)-(ausgabenProMonat[m]||0)));
+  return{von,bis,tatsaechlichMedian,einkommenMedian,fixkostenGesamt,
+    monate:monate.map(m=>MONL[lang][parseInt(m.split("-")[1],10)-1])};
+}
+
 function referenz(z){
   const heute=new Date();
   const trackKat=KAT.filter(k=>k.id!=="geschenke"&&k.id!=="sonstiges");
@@ -1218,7 +1337,29 @@ function referenz(z){
    ${rb.map(w=>{
      const diff=w.abweichung,diffFarbe=diff>0?"var(--rot)":"var(--gruen)";
      return`<div class="reihe${w.aktuell?" stark":""}"><span>${L("wocheLabel")} ${w.nr} · ${String(w.start.getDate()).padStart(2,"0")}.${String(w.start.getMonth()+1).padStart(2,"0")}.–${String(w.ende.getDate()).padStart(2,"0")}.${String(w.ende.getMonth()+1).padStart(2,"0")}.${w.aktuell?" · "+L("aktuell"):""}</span><span class="wert">${w.anzahl?f0(w.summe)+" €":"—"}${w.anzahl&&wochenBudget?` <span style="color:${diffFarbe};font-weight:600;font-size:12px">${diff>0?"+":""}${f0(diff)} €</span>`:""}</span></div>`;
-   }).join("")}</div>`;
+   }).join("")}</div>
+  <div class="karte"><h2>${L("kontoverlaufHeading")}</h2>
+   ${S.kontostand?(()=>{
+     const punkte=kontoverlaufDaten(kontoverlaufFenster);
+     const letzter=punkte[punkte.length-1].betrag,erster=punkte[0].betrag;
+     return`<p class="text">${L("kontoverlaufText")(datumKurz(S.kontostand.datum))}</p>
+     <div class="chips">${[30,90,180].map(f=>`<button class="chip${kontoverlaufFenster===f?" on":""}" data-konto-fenster="${f}">${f} ${L("tage")}</button>`).join("")}</div>
+     ${kontoverlaufSVG(punkte)}
+     <div class="reihe" style="margin-top:6px"><span>${L("kontostandAktuell")}</span><span class="wert" style="color:${letzter<0?"var(--rot)":"var(--gruen)"}">${f0(letzter)} €</span></div>`;
+   })():`<p class="text">${L("kontoverlaufKeineDaten")}</p>`}</div>
+  <div class="karte"><h2>${L("kategorienHeading")}</h2>
+   <p class="text">${L("kategorienText")}</p>
+   ${stapelbalkenSVG(monatsBalkenDaten(6))}
+   <div class="chips" style="margin-top:10px">${KAT.map(k=>`<span style="display:inline-flex;align-items:center;font-size:11.5px;color:var(--grau)"><span class="punkt" data-k="${k.id}"></span>${kl(k.id)}</span>`).join("")}</div></div>
+  <div class="karte"><h2>${L("sparvorschlagHeading")}</h2>
+   <p class="text">${L("sparvorschlagText")}</p>
+   ${(()=>{const sv=sparvorschlag();
+     if(!sv)return`<p class="finfo">${L("sparKeineDaten")}</p>`;
+     return`<div class="reihe stark"><span>${L("sparPotenzial")}</span><span class="wert">${f0(sv.von)}–${f0(sv.bis)} €</span></div>
+     <p class="finfo" style="margin-top:6px">${L("sparHerleitung")(f0(sv.einkommenMedian),f0(sv.fixkostenGesamt),sv.monate.join(", "))}</p>
+     <div class="reihe" style="margin-top:10px"><span>${L("tatsaechlichUebrig")}</span><span class="wert">${f0(sv.tatsaechlichMedian)} €</span></div>
+     <p class="finfo">${L("sparRealitaetscheck")}</p>`;
+   })()}</div>`;
 }
 
 function einstellungen(){
@@ -1536,6 +1677,8 @@ function binden(){
     S.schulden.push(eintrag);sichern();schuldForm=null;render();toast(L("tSchuldHinzugefuegt"))};
   document.querySelectorAll("[data-schuld-loeschen]").forEach(b=>b.onclick=()=>{
     S.schulden=S.schulden.filter(x=>x.id!==b.dataset.schuldLoeschen);sichern();render()});
+  document.querySelectorAll("[data-konto-fenster]").forEach(b=>b.onclick=()=>{
+    kontoverlaufFenster=parseInt(b.dataset.kontoFenster,10);render()});
 }
 
 function bindenLoeschen(){
