@@ -288,6 +288,11 @@ const T={
   csvText:"CSV-Export deiner Bank hier einfügen — für rückwirkendes Erfassen, z. B. den ganzen August auf einmal. Datum, Betrag und Verwendungszweck werden erkannt, Ausgaben automatisch kategorisiert. Vor dem Import kannst du jede Zeile noch prüfen und die Kategorie ändern.",
   csvPlaceholder:"CSV-Text hier einfügen",einlesen:"Einlesen",
   csvDateiWaehlen:"CSV-Datei wählen",oder:"oder",tDateiNichtLesbar:"Datei konnte nicht gelesen werden",
+  screenshotWaehlen:"Screenshot einlesen",bildWirdVerarbeitet:"Bild wird gelesen …",
+  bildFehlerText:"Bild konnte nicht gelesen werden — bitte einen schärferen Ausschnitt versuchen oder die Zeilen manuell eintragen.",
+  bildKeineTreffer:"Keine Beträge im Bild erkannt. Screenshot heller, größer oder mit weniger Text drumherum versuchen.",
+  ocrUnbekannterHaendler:"Unbekannt — bitte Namen eintragen",
+  ocrHinweis:"Texterkennung läuft direkt im Browser (Tesseract.js von einem CDN geladen), ohne Cloud-Dienst. Kann ungenau sein — jede Zeile vor dem Übernehmen prüfen und bei Bedarf korrigieren.",
   datenSichern:"Daten sichern",
   datenSichernText:"Alles liegt nur auf diesem Gerät. Exportiere regelmäßig, dann kannst du die Daten weitergeben oder wiederherstellen.",
   alsDateiExportieren:"Als Datei exportieren",inZwischenablage:"In die Zwischenablage",
@@ -425,6 +430,11 @@ const T={
   csvText:"Paste your bank's CSV export here — to backfill retroactively, e.g. all of August at once. Date, amount and description get detected, expenses get auto-categorized. Review and adjust every row before importing.",
   csvPlaceholder:"Paste CSV text here",einlesen:"Parse",
   csvDateiWaehlen:"Choose CSV file",oder:"or",tDateiNichtLesbar:"Couldn't read that file",
+  screenshotWaehlen:"Read screenshot",bildWirdVerarbeitet:"Reading image …",
+  bildFehlerText:"Couldn't read that image — try a sharper crop or enter the rows manually.",
+  bildKeineTreffer:"No amounts recognized in the image. Try a brighter, larger screenshot with less surrounding text.",
+  ocrUnbekannterHaendler:"Unknown — please enter a name",
+  ocrHinweis:"Text recognition runs locally in the browser (Tesseract.js, loaded from a CDN) — no cloud service involved. Can be inaccurate — check and correct every row before confirming.",
   datenSichern:"Back up data",
   datenSichernText:"Everything stays on this device only. Export regularly so you can transfer or restore your data.",
   alsDateiExportieren:"Export as file",inZwischenablage:"Copy to clipboard",
@@ -615,7 +625,8 @@ function klarnaMonatsschnitt(){
 }
 
 let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
-let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0;
+let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0,importQuelle="csv";
+let bildVerarbeitung=false,bildFehler=null;
 let manAboName="",manAboBetrag="",manAboZyklus="monat",manAboDatum=isoDatum(new Date());
 let offeneKategorie=null;
 let aboAnalyse=null;
@@ -1029,7 +1040,7 @@ function parseDatumDE(s){
 }
 function klassifiziereEinnahme(betrag){return betrag>=800?"einkommen":"rueckfluss"}
 function csvEinlesen(){
-  importFehler=null;
+  importFehler=null;importQuelle="csv";
   const{header,rows,headerFehler,vorschauZeilen,rohHeader,ersteDatenzeile,kontostand}=parseCSV(importText);
   if(headerFehler||!header.length){
     importFehler={typ:"header",zeilen:vorschauZeilen||[]};render();return;
@@ -1067,6 +1078,92 @@ function csvEinlesen(){
       umsatzart:r.umsatzart,drin:!dup,dup};
   });
   render();
+}
+
+let tesseractLadeVersuch=null;
+function ladeTesseract(){
+  if(window.Tesseract)return Promise.resolve();
+  if(tesseractLadeVersuch)return tesseractLadeVersuch;
+  tesseractLadeVersuch=new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js";
+    s.onload=()=>resolve();
+    s.onerror=()=>{tesseractLadeVersuch=null;reject(new Error("laden fehlgeschlagen"))};
+    document.head.appendChild(s);
+  });
+  return tesseractLadeVersuch;
+}
+const OCR_MONATE={jan:0,feb:1,"mär":2,mar:2,apr:3,mai:4,jun:5,jul:6,aug:7,sep:8,okt:9,nov:10,dez:11};
+function parseOCRBetrag(text){
+  const m=text.match(/-?\d{1,3}(?:[.\s]\d{3})*,\d{2}/);
+  if(!m)return null;
+  const v=parseBetragDE(m[0]);
+  return isNaN(v)?null:v;
+}
+function parseOCRDatum(text,jetzt){
+  const dmy=text.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
+  if(dmy){let[,t,m,j]=dmy;if(+m<1||+m>12)return null;if(j.length===2)j="20"+j;return new Date(+j,+m-1,+t,12,0,0)}
+  const dm=text.match(/\b(\d{1,2})[.\/](\d{1,2})\.?(?!\d)/);
+  if(dm){const[,t,m]=dm;if(+m<1||+m>12||+t<1||+t>31)return null;return new Date(jetzt.getFullYear(),+m-1,+t,12,0,0)}
+  const tm=text.toLowerCase().match(/\b(\d{1,2})\.?\s*(jan|feb|mär|mar|apr|mai|jun|jul|aug|sep|okt|nov|dez)\w*\.?\s*(\d{4})?/);
+  if(tm){const[,t,mAbk,j]=tm;return new Date(j?+j:jetzt.getFullYear(),OCR_MONATE[mAbk],+t,12,0,0)}
+  return null;
+}
+function bereinigeOCRZeile(zeile){
+  return zeile
+    .replace(/-?\d{1,3}(?:[.\s]\d{3})*,\d{2}\s*(€|EUR)?/gi,"")
+    .replace(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/g,"")
+    .replace(/\b(\d{1,2})[.\/](\d{1,2})\.?/g,"")
+    .replace(/\b\d{1,2}\.?\s*(jan|feb|mär|mar|apr|mai|jun|jul|aug|sep|okt|nov|dez)\w*\.?\s*(\d{4})?/gi,"")
+    .replace(/\bgirocard\b/gi,"")
+    .replace(/[€|:*_]+/g," ")
+    .replace(/\s+/g," ").trim();
+}
+function istReineDatumsZeile(zeile){
+  return bereinigeOCRZeile(zeile).length<2;
+}
+function parseScreenshotText(text){
+  const zeilen=text.split(/\n/).map(z=>z.trim()).filter(Boolean);
+  const jetzt=new Date(),treffer=[];
+  let letztesDatum=null;
+  for(let i=0;i<zeilen.length;i++){
+    const zeile=zeilen[i];
+    const datumHier=parseOCRDatum(zeile,jetzt);
+    const betrag=parseOCRBetrag(zeile);
+    if(betrag==null||betrag===0){
+      if(datumHier&&istReineDatumsZeile(zeile))letztesDatum=datumHier;
+      continue;
+    }
+    const datum=datumHier||letztesDatum||jetzt;
+    let haendler=bereinigeOCRZeile(zeile);
+    let j=i-1;
+    while(haendler.length<2&&j>=0){
+      const vorherige=zeilen[j];
+      if(parseOCRBetrag(vorherige)!=null)break;
+      if(!istReineDatumsZeile(vorherige)){haendler=bereinigeOCRZeile(vorherige);break}
+      j--;
+    }
+    if(!haendler)haendler=L("ocrUnbekannterHaendler");
+    treffer.push({datum,betrag:Math.abs(betrag),haendler,istEinnahme:betrag>0});
+  }
+  return treffer;
+}
+function bildEinlesen(datei){
+  bildFehler=null;bildVerarbeitung=true;render();
+  ladeTesseract().then(()=>Tesseract.recognize(datei,"deu")).then(({data})=>{
+    bildVerarbeitung=false;
+    const treffer=parseScreenshotText(data.text||"");
+    if(!treffer.length){bildFehler=L("bildKeineTreffer");render();return}
+    importQuelle="bild";
+    importRows=treffer.map((r,i)=>{
+      const dup=istDuplikat(r.datum,r.betrag,r.haendler);
+      return{id:"img"+i,datum:r.datum,betrag:r.betrag,notiz:r.haendler.slice(0,60),zweck:"",
+        kat:r.istEinnahme?null:autoKategorie(r.haendler),istEinnahme:r.istEinnahme,
+        einnahmeArt:r.istEinnahme?klassifiziereEinnahme(r.betrag):null,
+        umsatzart:"",drin:!dup,dup};
+    });
+    render();
+  }).catch(()=>{bildVerarbeitung=false;bildFehler=L("bildFehlerText");render()});
 }
 
 function naechste(f,h){
@@ -1466,10 +1563,11 @@ function budgets(){
    ${F.map(([id,katId,l,h])=>{
      const zyklus=id.startsWith("w_")?"woche":"monat";
      const vs=budgetVorschlag(katId,zyklus);
-     return`<div class="feldzeile" style="align-items:flex-start"><div><label for="${id}">${l}</label><div class="finfo">${h}</div>
+     return`<div class="feldzeile" style="align-items:flex-start"><div style="flex:1;min-width:0"><label for="${id}">${l}</label><div class="finfo">${h}</div>
      ${vs?(vs.volatil?`<div class="finfo" style="margin-top:5px">${L("budgetZuVolatil")(f0(vs.min),f0(vs.max))}</div>`
-       :`<div class="finfo" data-budget-vorschlag="${id}" data-vorschlag-wert="${vs.vorschlag}" style="cursor:pointer;text-decoration:underline dashed;margin-top:5px">${L("budgetVorschlagText")(f0(vs.vorschlag),vs.monate.join(", "))} <span style="opacity:.7">(${f0(vs.min)}–${f0(vs.max)} €)</span></div>`):""}</div>
-     <input class="zahlfeld" id="${id}" inputmode="decimal" placeholder="${L("keinBudgetGesetzt")}" value="${b[id]==null?"":b[id]}"></div>`;
+       :`<div class="finfo" data-budget-vorschlag="${id}" data-vorschlag-wert="${vs.vorschlag}" style="cursor:pointer;text-decoration:underline dashed;margin-top:5px">${L("budgetVorschlagText")(f0(vs.vorschlag),vs.monate.join(", "))} <span style="opacity:.7">(${f0(vs.min)}–${f0(vs.max)} €)</span></div>`):""}
+     ${b[id]==null?`<div class="finfo" style="margin-top:5px">${L("keinBudgetGesetzt")}</div>`:""}</div>
+     <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]==null?"":b[id]}"></div>`;
    }).join("")}
    <p class="finfo" style="margin-top:14px;line-height:1.6">${L("budgetErklaerung")}</p></div>
   <div class="karte"><h2>${L("umgerechnet")}</h2>
@@ -1480,6 +1578,9 @@ function budgets(){
    <p class="text">${L("csvText")}</p>
    <label class="sekundaer" style="display:block;text-align:center;cursor:pointer;margin-top:0">${L("csvDateiWaehlen")}
     <input type="file" id="csvdatei" accept=".csv,text/csv,text/plain" style="display:none"></label>
+   <label class="sekundaer" style="display:block;text-align:center;cursor:pointer">${bildVerarbeitung?L("bildWirdVerarbeitet"):L("screenshotWaehlen")}
+    <input type="file" id="bilddatei" accept="image/png,image/jpeg" style="display:none"${bildVerarbeitung?" disabled":""}></label>
+   ${bildFehler?`<p class="finfo" style="color:var(--rot);margin-top:8px">${esc(bildFehler)}</p>`:""}
    <p class="finfo" style="text-align:center;margin:10px 0">${L("oder")}</p>
    <textarea class="feld" id="csvfeld" placeholder="${L("csvPlaceholder")}">${esc(importText)}</textarea>
    <button class="sekundaer" id="csvEinlesen">${L("einlesen")}</button>
@@ -1515,10 +1616,24 @@ function diagnoseText(f){
 
 function importAnsicht(){
   const n=importRows.filter(r=>r.drin).length;
+  const bild=importQuelle==="bild";
   return`<div class="karte"><h2>${L("importPruefen")}</h2>
    <p class="text">${L("importText")(importRows.length)}</p>
+   ${bild?`<p class="finfo" style="margin:-6px 0 14px">${L("ocrHinweis")}</p>`:""}
    ${importVersteckteAnzahl>0?`<p class="finfo" style="margin:-6px 0 14px">${L("aeltereAusgeblendet")(importVersteckteAnzahl)} <button class="iconbtn" id="impAlleAnzeigen" style="text-decoration:underline;width:auto;height:auto;display:inline;color:var(--tinte);padding:0">${L("alleAnzeigen")}</button></p>`:""}
-   <ul class="liste">${importRows.map(r=>`<li class="zeile">
+   <ul class="liste">${importRows.map(r=>bild?`<li class="zeile" style="flex-wrap:wrap;row-gap:8px">
+    <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
+    <input data-imp-notiz="${r.id}" value="${esc(r.notiz)}" style="flex:1;min-width:100px;border:1px solid var(--linie);border-radius:8px;padding:6px 8px;font-size:13px;background:var(--bg);color:var(--tinte);font-family:inherit">
+    ${r.istEinnahme?`<span class="flab" style="background:var(--gruen)">${L("einnahme")}</span>`:""}${r.dup?`<span class="flab warn">${L("moeglichesDuplikat")}</span>`:""}
+    ${r.istEinnahme?`<select data-imp-einnahmeart="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
+     <option value="einkommen"${r.einnahmeArt==="einkommen"?" selected":""}>${L("einkommen")}</option>
+     <option value="rueckfluss"${r.einnahmeArt==="rueckfluss"?" selected":""}>${L("rueckfluss")}</option>
+    </select>`:`<select data-imp-kat="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
+     ${KAT.map(k=>`<option value="${k.id}"${k.id===r.kat?" selected":""}>${kl(k.id)}</option>`).join("")}
+    </select>`}
+    <input data-imp-datum="${r.id}" type="date" value="${isoDatum(r.datum)}" style="flex:none;border:1px solid var(--linie);border-radius:8px;padding:6px 8px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit">
+    <input data-imp-betrag="${r.id}" inputmode="decimal" value="${f2(r.betrag)}" style="width:64px;text-align:right;border:1px solid var(--linie);border-radius:8px;padding:6px 8px;font-size:13px;background:var(--bg);color:var(--tinte);font-family:inherit">
+   </li>`:`<li class="zeile">
     <input type="checkbox" data-imp-check="${r.id}"${r.drin?" checked":""} style="flex:none;width:18px;height:18px">
     <span class="zeile-h">${esc(r.notiz||"—")}${r.istEinnahme?`<span class="flab" style="background:var(--gruen)">${L("einnahme")}</span>`:""}${r.dup?`<span class="flab warn">${L("moeglichesDuplikat")}</span>`:""}<span class="zeile-n">${String(r.datum.getDate()).padStart(2,"0")}.${String(r.datum.getMonth()+1).padStart(2,"0")}.</span></span>
     ${r.istEinnahme?`<select data-imp-einnahmeart="${r.id}" style="border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit;flex:none">
@@ -1694,6 +1809,11 @@ function binden(){
       reader.onerror=()=>toast(L("tDateiNichtLesbar"));
       reader.readAsText(datei,enc)};
     liesAls("UTF-8","ISO-8859-1")};
+  const bdatei=document.getElementById("bilddatei");
+  if(bdatei)bdatei.onchange=e=>{
+    const datei=e.target.files[0];if(!datei)return;
+    bildEinlesen(datei);
+    e.target.value=""};
   const ae=document.getElementById("aboErkennen");
   if(ae)ae.onclick=()=>{
     const a=analysiereAbos();a.fixkosten.forEach(v=>v.drin=true);
@@ -1784,13 +1904,23 @@ function bindenImport(){
     const r=importRows.find(x=>x.id===s.dataset.impKat);r.kat=e.target.value});
   document.querySelectorAll("[data-imp-einnahmeart]").forEach(s=>s.onchange=e=>{
     const r=importRows.find(x=>x.id===s.dataset.impEinnahmeart);r.einnahmeArt=e.target.value});
+  document.querySelectorAll("[data-imp-notiz]").forEach(inp=>inp.oninput=e=>{
+    const r=importRows.find(x=>x.id===inp.dataset.impNotiz);r.notiz=e.target.value});
+  document.querySelectorAll("[data-imp-betrag]").forEach(inp=>inp.onchange=e=>{
+    const r=importRows.find(x=>x.id===inp.dataset.impBetrag);
+    const v=parseFloat(e.target.value.replace(",","."));
+    if(!isNaN(v)&&v>0)r.betrag=v;else e.target.value=f2(r.betrag)});
+  document.querySelectorAll("[data-imp-datum]").forEach(inp=>inp.onchange=e=>{
+    const r=importRows.find(x=>x.id===inp.dataset.impDatum);
+    const[jj,mm,tt]=e.target.value.split("-").map(Number);
+    if(jj&&mm&&tt)r.datum=new Date(jj,mm-1,tt,12,0,0)});
   const alle=document.getElementById("impAlleAnzeigen");
   if(alle)alle.onclick=()=>{
     importVersteckteAnzahl=0;
     importRows=importAlleGeparst.map((r,i)=>{
       const istEinnahme=r.betrag>0;
       const dup=istDuplikat(r.datum,Math.abs(r.betrag),r.haendler);
-      return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),
+      return{id:"imp"+i,datum:r.datum,betrag:Math.abs(r.betrag),notiz:r.haendler.slice(0,60),zweck:r.zweck,
         kat:istEinnahme?null:autoKategorie(r.haendler),istEinnahme,
         einnahmeArt:istEinnahme?klassifiziereEinnahme(r.betrag):null,
         umsatzart:r.umsatzart,drin:!dup,dup};
