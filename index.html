@@ -44,7 +44,7 @@ h2{font-size:15px;font-weight:650;margin:0 0 12px}
 .hero .topf+.topf{border-top:1px solid rgba(255,255,255,.13);margin-top:16px;padding-top:16px}
 .karte .topf+.topf{border-top:1px solid var(--linie);margin-top:16px;padding-top:16px}
 .topf-kopf{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
-.topf-lab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.65}
+.topf-lab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.65;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .topf-zyk{font-size:11px;opacity:.5;font-variant-numeric:tabular-nums}
 .topf-zahl{font-size:40px;font-weight:600;letter-spacing:-.035em;line-height:1;
   font-variant-numeric:tabular-nums;margin-bottom:12px}
@@ -191,7 +191,7 @@ const MARKEN=[
  {id:"rueckwirkend",svg:`<svg ${SVGATTR}><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v5h5"/></svg>`},
  {id:"import",svg:`<svg ${SVGATTR}><path d="M12 4v11"/><path d="M7.5 11l4.5 4.5L16.5 11"/><path d="M4.5 18.5v2a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-2"/></svg>`}];
 
-const STD={w_lebensmittel:0,w_auswaerts:0,m_shopping:0,m_freizeit:0};
+const STD={w_lebensmittel:null,w_auswaerts:null,m_shopping:null,m_freizeit:null};
 
 const SEED=[];
 
@@ -242,6 +242,9 @@ const T={
   saldoHeading:"Saldo diesen Monat",
   saldoText:"Einnahmen minus Ausgaben — für Geld, das unerwartet reinkommt, buche es oben als Einnahme statt als Ausgabe.",
   einnahmenMonat:"Einnahmen",ausgabenMonat:"Ausgaben",saldoMonat:"Bleibt",
+  einkommenMonat:"Einkommen",rueckflussMonat:"Rückflüsse",
+  gehaltErwartetLabel:t=>`Gehalt erwartet um den ${t}.`,gehaltErwartetBetrag:b=>`rund ${b} €`,
+  saldoDanachLabel:"Saldo danach ca.",
   einnahme:"Einnahme",notizEinnahmePlaceholder:"Notiz, z. B. Rückerstattung",
   einkommen:"Einkommen",rueckfluss:"Rückfluss",
   schnittText:"Median aus deinen abgeschlossenen Monaten, daneben was du diesen Monat gebucht hast. Der Wert nach dem Schrägstrich lässt sich direkt antippen und überschreiben.",
@@ -250,15 +253,17 @@ const T={
   wochenrueckblick:m=>`Wochenrückblick ${m}`,
   wochenBudgetHinweis:b=>`Wochenbudget (Lebensmittel + Auswärts): ${b} € · nur diese Kategorien, ohne Fixkosten und Einzelposten ab 200 €.`,
   kontoverlaufHeading:"Kontoverlauf",tage:"Tage",kontostandAktuell:"Aktueller Stand",
-  kontoverlaufText:d=>`Hochgerechnet aus dem importierten Kontostand vom ${d} und allen seither gebuchten Bewegungen.`,
+  kontoverlaufText:d=>`Berechnet aus dem beim letzten CSV-Import erfassten Kontostand vom ${d}, davor und danach anhand aller gebuchten Bewegungen fortgeschrieben.`,
   kontoverlaufKeineDaten:"Noch kein Kontostand importiert — beim nächsten CSV-Import wird er automatisch mit erfasst, wenn die Datei ihn enthält.",
-  kategorienHeading:"Ausgaben nach Kategorie",kategorienText:"Letzte sechs Monate, gestapelt nach Kategorie.",
+  kategorienHeading:"Variable Ausgaben nach Kategorie",kategorienText:"Letzte sechs Monate, gestapelt nach Kategorie — ohne erkannte Fixkosten und Abos.",
   sparvorschlagHeading:"Sparpotenzial",
   sparvorschlagText:"Grobe Schätzung, keine Vorgabe: Median-Einkommen minus Fixkosten minus laufende Budgets.",
   sparPotenzial:"Geschätztes Sparpotenzial pro Monat",
-  sparHerleitung:(eink,fix,monate)=>`Median-Einkommen ${eink} € minus Fixkosten ${fix} € minus Budgets (bzw. tatsächliche Ausgaben, je nachdem was näherliegt) — aus ${monate}.`,
-  tatsaechlichUebrig:"Tatsächlich übrig geblieben (Median)",
-  sparRealitaetscheck:"Was in den letzten Monaten wirklich übrig blieb, unabhängig vom Budget — als Realitätscheck zur Schätzung oben.",
+  sparHerleitung:(eink,fix,n)=>`Median-Einkommen ${eink} € minus Fixkosten ${fix} € minus Budgets (bzw. tatsächliche Ausgaben, je nachdem was näherliegt) — aus den letzten ${n} abgeschlossenen Monaten.`,
+  tatsaechlichUebrig:"Tatsächlich übrig geblieben — Median",
+  tatsaechlichMittel:"Tatsächlich übrig geblieben — Mittelwert",
+  sparNegativeMonate:(n,gesamt)=>`In ${n} von ${gesamt} Monaten war der Saldo negativ.`,
+  sparRealitaetscheck:"Was in den letzten 12 Monaten wirklich übrig blieb, unabhängig vom Budget — als Realitätscheck zur Schätzung oben.",
   sparKeineDaten:"Noch nicht genug erfasstes Einkommen (mind. ein abgeschlossener Monat) für eine Schätzung.",
   rueckblickText:"Was pro Woche gebucht wurde — auch nachträglich erfasste Buchungen zählen hier in die richtige Woche.",
   aktuell:"aktuell",wocheLabel:"Woche",
@@ -374,6 +379,9 @@ const T={
   saldoHeading:"Balance this month",
   saldoText:"Income minus expenses — for money that comes in unexpectedly, log it above as income instead of an expense.",
   einnahmenMonat:"Income",ausgabenMonat:"Expenses",saldoMonat:"Left over",
+  einkommenMonat:"Income",rueckflussMonat:"Refunds",
+  gehaltErwartetLabel:t=>`Salary expected around the ${t}`,gehaltErwartetBetrag:b=>`roughly ${b} €`,
+  saldoDanachLabel:"Balance after that, roughly",
   einnahme:"Income",notizEinnahmePlaceholder:"Note, e.g. refund",
   einkommen:"Earnings",rueckfluss:"Refund",
   schnittText:"Median from your completed months, next to what you've logged this month. Tap the number after the slash to edit it directly.",
@@ -382,15 +390,17 @@ const T={
   wochenrueckblick:m=>`Weekly review — ${m}`,
   wochenBudgetHinweis:b=>`Weekly budget (Lebensmittel + Auswärts): ${b} € · only these categories, excluding fixed costs and single items of 200 € or more.`,
   kontoverlaufHeading:"Account balance",tage:"days",kontostandAktuell:"Current balance",
-  kontoverlaufText:d=>`Projected from the imported balance on ${d} plus every transaction booked since.`,
+  kontoverlaufText:d=>`Computed from the balance captured on the last CSV import (${d}), carried forward and backward through every booked transaction.`,
   kontoverlaufKeineDaten:"No account balance imported yet — the next CSV import will pick it up automatically if the file contains one.",
-  kategorienHeading:"Spending by category",kategorienText:"Last six months, stacked by category.",
+  kategorienHeading:"Variable spending by category",kategorienText:"Last six months, stacked by category — excluding detected fixed costs and subscriptions.",
   sparvorschlagHeading:"Savings potential",
   sparvorschlagText:"A rough estimate, not a target: median income minus fixed costs minus current budgets.",
   sparPotenzial:"Estimated monthly savings potential",
-  sparHerleitung:(eink,fix,monate)=>`Median income ${eink} € minus fixed costs ${fix} € minus budgets (or actual spend, whichever is closer) — from ${monate}.`,
-  tatsaechlichUebrig:"Actually left over (median)",
-  sparRealitaetscheck:"What was actually left over in recent months, regardless of budget — a reality check on the estimate above.",
+  sparHerleitung:(eink,fix,n)=>`Median income ${eink} € minus fixed costs ${fix} € minus budgets (or actual spend, whichever is closer) — from the last ${n} completed months.`,
+  tatsaechlichUebrig:"Actually left over — median",
+  tatsaechlichMittel:"Actually left over — average",
+  sparNegativeMonate:(n,gesamt)=>`The balance was negative in ${n} of the last ${gesamt} months.`,
+  sparRealitaetscheck:"What was actually left over in the last 12 months, regardless of budget — a reality check on the estimate above.",
   sparKeineDaten:"Not enough recorded income yet (at least one completed month) for an estimate.",
   rueckblickText:"What got logged per week — entries added after the fact still land in the right week.",
   aktuell:"current",wocheLabel:"Week",
@@ -505,11 +515,12 @@ function berechneErfolge(){
       const posten=S.eintraege.filter(e=>e.ts>=von&&e.ts<=bis);
       const leb=posten.filter(e=>e.kat==="lebensmittel").reduce((s,e)=>s+e.betrag,0);
       const aus=posten.filter(e=>e.kat==="auswaerts").reduce((s,e)=>s+e.betrag,0);
-      if(leb<=S.budget.w_lebensmittel&&aus<=S.budget.w_auswaerts)serieWochen++;
+      if(S.budget.w_lebensmittel!=null&&S.budget.w_auswaerts!=null&&leb<=S.budget.w_lebensmittel&&aus<=S.budget.w_auswaerts)serieWochen++;
       else break;
     }
     const monate=[...new Set(S.eintraege.map(e=>mk(new Date(e.ts))))].filter(m=>m<mk(heute));
     monatGruen=monate.some(m=>{
+      if(S.budget.w_lebensmittel==null||S.budget.w_auswaerts==null||S.budget.m_shopping==null||S.budget.m_freizeit==null)return false;
       const posten=S.eintraege.filter(e=>mk(new Date(e.ts))===m);
       const sum=k=>posten.filter(e=>e.kat===k).reduce((s,e)=>s+e.betrag,0);
       return sum("lebensmittel")<=S.budget.w_lebensmittel*4.35&&sum("auswaerts")<=S.budget.w_auswaerts*4.35&&
@@ -603,7 +614,7 @@ function klarnaMonatsschnitt(){
   return median(monate.map(m=>monatsSummen[m]));
 }
 
-let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0;
 let manAboName="",manAboBetrag="",manAboZyklus="monat",manAboDatum=isoDatum(new Date());
 let offeneKategorie=null;
@@ -628,7 +639,7 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};S.schulden=d.schulden||[];S.kontostand=d.kontostand||null;return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};S.schulden=d.schulden||[];S.kontostand=d.kontostand||null;S.umzugsdatum=d.umzugsdatum||null;migriereBudgetNull(d);bereinigeDoppelteAbos();return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
@@ -636,6 +647,24 @@ function laden(){
     return{id:"seed"+i,ts:d.getTime(),betrag:s.betrag,kat:s.kat,notiz:s.notiz}
   }).sort((a,b)=>b.ts-a.ts);
   sichern();
+}
+function migriereBudgetNull(d){
+  if(S.marken&&S.marken.budgetNullMigriert)return;
+  const roh=d.budget||{};
+  ["w_lebensmittel","w_auswaerts","m_shopping","m_freizeit"].forEach(id=>{
+    if(roh[id]===0)S.budget[id]=null;
+  });
+  S.marken=S.marken||{};S.marken.budgetNullMigriert=true;
+  sichern();
+}
+function bereinigeDoppelteAbos(){
+  if(!S.schulden||!S.schulden.length||!S.abos.length)return;
+  const vor=S.abos.length;
+  S.abos=S.abos.filter(a=>{
+    const nA=normalisiere(a.name);
+    return!S.schulden.some(s=>{const nS=normalisiere(s.name);return nA===nS||nA.includes(nS)||nS.includes(nA)});
+  });
+  if(S.abos.length!==vor)sichern();
 }
 function sichern(){try{localStorage.setItem("kontur:daten",JSON.stringify(S))}catch(e){toast(L("tSpeichernFehlgeschlagen"))}}
 function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("an");setTimeout(()=>e.classList.remove("an"),1400)}
@@ -809,7 +838,7 @@ function gruppenBilden(eintraege){
       if(!liste.length)return;
       const mitKennung={},ohneKennung=[];
       liste.forEach(e=>{
-        const vk=vertragskennung(e.notiz);
+        const vk=vertragskennung(e.zweck||e.notiz);
         if(vk)(mitKennung[vk]=mitKennung[vk]||[]).push(e);else ohneKennung.push(e);
       });
       Object.entries(mitKennung).forEach(([vk,es])=>{
@@ -860,7 +889,7 @@ function klassifiziereTopf(k,kartenGesperrt,semantisch){
   return"UNSICHER";
 }
 const MONATE_DE=["januar","februar","märz","april","mai","juni","juli","august","september","oktober","november","dezember"];
-function bezugsmonat(notiz){
+function bezugsmonat(notiz,zahlungsTs){
   if(!notiz)return null;
   const t=notiz.toLowerCase();
   for(let i=0;i<MONATE_DE.length;i++){
@@ -869,6 +898,15 @@ function bezugsmonat(notiz){
   }
   const mm=t.match(/\b(0[1-9]|1[0-2])[.\/](\d{4})\b/);
   if(mm)return{monat:+mm[1]-1,jahr:+mm[2]};
+  for(let i=0;i<MONATE_DE.length;i++){
+    if(new RegExp("\\b"+MONATE_DE[i]+"\\b").test(t)){
+      if(!zahlungsTs)return{monat:i,jahr:null};
+      const zd=new Date(zahlungsTs);
+      let jahr=zd.getFullYear();
+      if(i>zd.getMonth())jahr-=1;
+      return{monat:i,jahr};
+    }
+  }
   return null;
 }
 function erkennePreisAenderung(k){
@@ -886,7 +924,7 @@ function erkennePreisAenderung(k){
 function analysiereAbos(){
   const posten=S.eintraege.filter(e=>e.typ!=="einnahme"&&(e.notiz||"").trim());
   const gruppen=gruppenBilden(posten);
-  const bekannt=new Set([...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name)),...(S.schulden||[]).map(s=>normalisiere(s.name))]);
+  const bekanntListe=[...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name)),...(S.schulden||[]).map(s=>normalisiere(s.name))].filter(Boolean);
   const heute=Date.now();
   const fixkosten=[],beendet=[],gewohnheiten=[],preisfragen=[],unsicher=[];
   gruppen.forEach(({schluessel,eintraege,kartenAbo,kartenErlaubt,semantisch})=>{
@@ -894,7 +932,8 @@ function analysiereAbos(){
     const{normal,jahresabrechnungen}=trenneJahresabrechnung(eintraege);
     if(normal.length<3)return;
     const name=anzeigename(normal);
-    if(bekannt.has(normalisiere(name)))return;
+    const nName=normalisiere(name);
+    if(bekanntListe.some(b=>nName===b||nName.includes(b)||b.includes(nName)))return;
     const regel=(S.abRegeln||{})[schluessel];
     if(regel&&regel.ignoriert)return;
     const k=berechneKennzahlen(normal);
@@ -904,13 +943,16 @@ function analysiereAbos(){
     const eintrag={id:"vs_"+schluessel,schluessel,name,betrag:Math.round(betragAktuell*100)/100,
       tag:new Date(k.letzteBuchung).getDate(),n:k.n,betragCV:k.betragCV,abstandCV:k.abstandCV,
       medianAbstand:Math.round(k.medianAbstand),letzteBuchung:k.letzteBuchung,semantisch:!!semantisch,
-      bezugsmonat:bezugsmonat(k.sortiert[k.n-1].zweck||k.sortiert[k.n-1].notiz),
+      bezugsmonat:bezugsmonat(k.sortiert[k.n-1].zweck||k.sortiert[k.n-1].notiz,k.sortiert[k.n-1].ts),
       jahresabrechnung:jahresabrechnungen.length?Math.round(median(jahresabrechnungen.map(j=>j.betrag))*100)/100:null};
     if(topf==="A"){
       const inaktivSchwelle=k.medianAbstand*2+7;
       const tageSeitLetzter=(heute-k.letzteBuchung)/864e5;
       if(tageSeitLetzter>inaktivSchwelle){beendet.push(eintrag);return}
-      if(!regel||!regel.preisEntscheidung){
+      if(eintrag.semantisch){
+        const pa=erkennePreisAenderung(k);
+        if(pa)eintrag.verlauf={aktion:"preisaenderung",alterBetrag:pa.alterBetrag,neuerBetrag:pa.neuerBetrag,seitTs:pa.seitTs};
+      }else if(!regel||!regel.preisEntscheidung){
         const pa=erkennePreisAenderung(k);
         if(pa){preisfragen.push({...eintrag,...pa});return}
       }else if(regel.preisEntscheidung.aktion==="preisaenderung"||regel.preisEntscheidung.aktion==="neu"){
@@ -953,10 +995,10 @@ function parseCSV(text){
   let kontostand=null;
   zeilen.forEach(z=>{
     if(!/kontostand/i.test(z))return;
-    const teile=z.split(delim).map(t=>t.trim());
-    let betrag=null;
-    for(let j=teile.length-1;j>=0;j--){const v=parseBetragDE(teile[j]);if(!isNaN(v)&&/\d/.test(teile[j])){betrag=v;break}}
-    if(betrag==null)return;
+    const betragMatch=z.match(/-?\d{1,3}(?:[.\s]\d{3})*,\d{2}|-?\d+,\d{2}/);
+    if(!betragMatch)return;
+    const betrag=parseBetragDE(betragMatch[0]);
+    if(isNaN(betrag))return;
     const datumMatch=z.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
     const datum=datumMatch?parseDatumDE(datumMatch[0]):null;
     kontostand={betrag,datum};
@@ -1055,7 +1097,7 @@ function rechne(){
 
 /* ═══ Bausteine ════════════════════════════════════════════ */
 function topfHTML(t){
-  if(!t.budget){
+  if(t.budget==null){
     return`<div class="topf"><div class="topf-kopf"><span class="topf-lab">${t.label}</span>
      <span class="topf-zyk">${t.zykZeile}</span></div>
      <div class="topf-fuss" style="margin-top:2px">${t.ist?L("keinBudgetAberGebucht")(t.ist):L("keinBudgetGesetzt")}</div></div>`;
@@ -1076,7 +1118,7 @@ function topfHTML(t){
 function erfassen(z){
   const a=KAT.find(k=>k.id===kat),t=z.toepfe.find(x=>x.id===a.topf);
   const b=parseFloat(wert.replace(",","."))||0;
-  const danach=t?t.budget-t.ist-b:null;
+  const danach=t&&t.budget!=null?t.budget-t.ist-b:null;
   const istEinnahme=eintragTyp==="einnahme";
   return`<div class="hero">${z.toepfe.slice(0,2).map(topfHTML).join("")}</div>
   <div class="karte">
@@ -1230,12 +1272,17 @@ function kontoverlaufSVG(punkte){
    <line x1="0" y1="${yNull.toFixed(1)}" x2="${w}" y2="${yNull.toFixed(1)}" stroke="var(--linie)" stroke-width="1" stroke-dasharray="4 3"/>
    <path d="${pfad}" fill="none" stroke="${farbe}" stroke-width="2"/></svg>`;
 }
+function istBekannterFixposten(notiz){
+  if(!notiz)return false;
+  const n=normalisiere(notiz);
+  return[...S.fix,...S.abos,...(S.schulden||[])].some(f=>{const nf=normalisiere(f.name);return n===nf||n.includes(nf)||nf.includes(n)});
+}
 function monatsBalkenDaten(anzahlMonate){
   const heute=new Date(),monate=[];
   for(let i=anzahlMonate-1;i>=0;i--)monate.push(mk(new Date(heute.getFullYear(),heute.getMonth()-i,1)));
   return monate.map(m=>{
     const proKat={};KAT.forEach(k=>proKat[k.id]=0);
-    S.eintraege.filter(e=>e.typ!=="einnahme"&&mk(new Date(e.ts))===m).forEach(e=>{proKat[e.kat]=(proKat[e.kat]||0)+e.betrag});
+    S.eintraege.filter(e=>e.typ!=="einnahme"&&mk(new Date(e.ts))===m&&!istBekannterFixposten(e.notiz)).forEach(e=>{proKat[e.kat]=(proKat[e.kat]||0)+e.betrag});
     const gesamt=Object.values(proKat).reduce((a,b)=>a+b,0);
     return{monat:m,label:MONL[lang][parseInt(m.split("-")[1],10)-1],proKat,gesamt};
   });
@@ -1260,32 +1307,58 @@ function stapelbalkenSVG(daten){
   return`<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="display:block">${inhalt}</svg>`;
 }
 
+function letzteAbgeschlosseneMonate(n){
+  const heute=new Date(),monate=[];
+  for(let i=n;i>=1;i--)monate.push(mk(new Date(heute.getFullYear(),heute.getMonth()-i,1)));
+  return monate;
+}
 function sparvorschlag(){
-  const heute=new Date(),aktMonat=mk(heute);
-  const proMonat=filterFn=>{
-    const sums={};
-    S.eintraege.filter(filterFn).forEach(e=>{
-      const m=mk(new Date(e.ts));if(m===aktMonat)return;
-      sums[m]=(sums[m]||0)+e.betrag;
-    });
-    return sums;
-  };
-  const einkommenProMonat=proMonat(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen");
-  const monate=Object.keys(einkommenProMonat).sort().slice(-3);
-  if(!monate.length)return null;
-  const einkommenMedian=median(monate.map(m=>einkommenProMonat[m]));
+  const monate=letzteAbgeschlosseneMonate(12);
+  const monatsSet=new Set(monate);
+  const einkommenProMonat={},einnahmenGesamtProMonat={},ausgabenProMonat={},variabelProMonat={};
+  const variableKat=["lebensmittel","auswaerts","shopping","freizeit"];
+  monate.forEach(m=>{einkommenProMonat[m]=0;einnahmenGesamtProMonat[m]=0;ausgabenProMonat[m]=0;variabelProMonat[m]=0});
+  S.eintraege.forEach(e=>{
+    const m=mk(new Date(e.ts));
+    if(!monatsSet.has(m))return;
+    if(e.typ==="einnahme"){
+      einnahmenGesamtProMonat[m]+=e.betrag;
+      if(e.einnahmeArt==="einkommen")einkommenProMonat[m]+=e.betrag;
+    }else{
+      ausgabenProMonat[m]+=e.betrag;
+      if(variableKat.includes(e.kat))variabelProMonat[m]+=e.betrag;
+    }
+  });
+  const einkommenWerte=monate.map(m=>einkommenProMonat[m]).filter(v=>v>0);
+  if(!einkommenWerte.length)return null;
+  const einkommenMedian=median(einkommenWerte);
   const fixkostenGesamt=[...S.fix,...S.abos].reduce((sum,f)=>sum+(f.typ==="quartal"?f.betrag/3:f.typ==="jahr"?f.betrag/12:f.betrag),0);
   const budgetGesamt=(S.budget.w_lebensmittel||0)*4.35+(S.budget.w_auswaerts||0)*4.35+(S.budget.m_shopping||0)+(S.budget.m_freizeit||0);
-  const variableKat=["lebensmittel","auswaerts","shopping","freizeit"];
-  const variabelProMonat=proMonat(e=>e.typ!=="einnahme"&&variableKat.includes(e.kat));
-  const variabelIstMedian=median(monate.map(m=>variabelProMonat[m]||0));
+  const variabelIstMedian=median(monate.map(m=>variabelProMonat[m]));
   const beiBudget=einkommenMedian-fixkostenGesamt-budgetGesamt;
   const beiIst=einkommenMedian-fixkostenGesamt-variabelIstMedian;
   const von=Math.min(beiBudget,beiIst),bis=Math.max(beiBudget,beiIst);
-  const ausgabenProMonat=proMonat(e=>e.typ!=="einnahme");
-  const tatsaechlichMedian=median(monate.map(m=>(einkommenProMonat[m]||0)-(ausgabenProMonat[m]||0)));
-  return{von,bis,tatsaechlichMedian,einkommenMedian,fixkostenGesamt,
-    monate:monate.map(m=>MONL[lang][parseInt(m.split("-")[1],10)-1])};
+  const saldoWerte=monate.map(m=>einnahmenGesamtProMonat[m]-ausgabenProMonat[m]);
+  const saldoMedian=median(saldoWerte);
+  const saldoMittelwert=saldoWerte.reduce((a,b)=>a+b,0)/saldoWerte.length;
+  const negativeMonate=saldoWerte.filter(v=>v<0).length;
+  return{von,bis,saldoMedian,saldoMittelwert,negativeMonate,gesamtMonate:monate.length,einkommenMedian,fixkostenGesamt};
+}
+
+function gehaltErwartung(){
+  const heute=new Date(),aktMonat=mk(heute);
+  const proMonat={},tage=[];
+  S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen").forEach(e=>{
+    const d=new Date(e.ts),m=mk(d);
+    if(m===aktMonat)return;
+    proMonat[m]=(proMonat[m]||0)+e.betrag;
+    tage.push(d.getDate());
+  });
+  const monate=Object.keys(proMonat).sort().slice(-6);
+  if(!monate.length)return null;
+  const schonGebucht=S.eintraege.some(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen"&&mk(new Date(e.ts))===aktMonat);
+  if(schonGebucht)return null;
+  return{tag:Math.round(median(tage)),betrag:median(monate.map(m=>proMonat[m]))};
 }
 
 function referenz(z){
@@ -1301,13 +1374,19 @@ function referenz(z){
   });
   const vormonat=new Date(heute.getFullYear(),heute.getMonth()-1,1),vmKey=mk(vormonat);
   const vmSumme=id=>S.eintraege.filter(e=>e.kat===id&&mk(new Date(e.ts))===vmKey).reduce((s,e)=>s+e.betrag,0);
-  const monatEinnahmen=S.eintraege.filter(e=>e.typ==="einnahme"&&mk(new Date(e.ts))===mk(heute)).reduce((s,e)=>s+e.betrag,0);
-  const saldo=monatEinnahmen-z.monatGesamt;
+  const einkommenMonat=S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen"&&mk(new Date(e.ts))===mk(heute)).reduce((s,e)=>s+e.betrag,0);
+  const rueckflussMonat=S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="rueckfluss"&&mk(new Date(e.ts))===mk(heute)).reduce((s,e)=>s+e.betrag,0);
+  const gehalt=gehaltErwartung();
+  const saldo=einkommenMonat+rueckflussMonat-z.monatGesamt;
+  const saldoDanach=einkommenMonat+rueckflussMonat+(gehalt?gehalt.betrag:0)-z.monatGesamt;
   return`<div class="karte"><h2>${L("saldoHeading")}</h2>
    <p class="text">${L("saldoText")}</p>
-   <div class="reihe"><span>${L("einnahmenMonat")}</span><span class="wert">${f0(monatEinnahmen)} €</span></div>
+   <div class="reihe"><span>${L("einkommenMonat")}</span><span class="wert">${f0(einkommenMonat)} €</span></div>
+   ${rueckflussMonat?`<div class="reihe"><span>${L("rueckflussMonat")}</span><span class="wert">${f0(rueckflussMonat)} €</span></div>`:""}
    <div class="reihe"><span>${L("ausgabenMonat")}</span><span class="wert">${f0(z.monatGesamt)} €</span></div>
-   <div class="reihe stark"><span>${L("saldoMonat")}</span><span class="wert" style="color:${saldo<0?"var(--rot)":"var(--gruen)"}">${saldo>=0?"+":""}${f0(saldo)} €</span></div></div>
+   ${gehalt?`<div class="reihe stark"><span>${L("gehaltErwartetLabel")(gehalt.tag)}</span><span class="wert">${L("gehaltErwartetBetrag")(f0(gehalt.betrag))}</span></div>
+   <div class="reihe"><span>${L("saldoDanachLabel")}</span><span class="wert" style="color:${saldoDanach<0?"var(--rot)":"var(--gruen)"}">${saldoDanach>=0?"+":""}${f0(saldoDanach)} €</span></div>`
+   :`<div class="reihe stark"><span>${L("saldoMonat")}</span><span class="wert" style="color:${saldo<0?"var(--rot)":"var(--gruen)"}">${saldo>=0?"+":""}${f0(saldo)} €</span></div>`}</div>
   <div class="karte"><h2>${L("deinSchnitt")}</h2>
    <p class="text">${L("schnittText")}</p>
    ${trackKat.map(k=>{
@@ -1356,8 +1435,10 @@ function referenz(z){
    ${(()=>{const sv=sparvorschlag();
      if(!sv)return`<p class="finfo">${L("sparKeineDaten")}</p>`;
      return`<div class="reihe stark"><span>${L("sparPotenzial")}</span><span class="wert">${f0(sv.von)}–${f0(sv.bis)} €</span></div>
-     <p class="finfo" style="margin-top:6px">${L("sparHerleitung")(f0(sv.einkommenMedian),f0(sv.fixkostenGesamt),sv.monate.join(", "))}</p>
-     <div class="reihe" style="margin-top:10px"><span>${L("tatsaechlichUebrig")}</span><span class="wert">${f0(sv.tatsaechlichMedian)} €</span></div>
+     <p class="finfo" style="margin-top:6px">${L("sparHerleitung")(f0(sv.einkommenMedian),f0(sv.fixkostenGesamt),sv.gesamtMonate)}</p>
+     <div class="reihe" style="margin-top:10px"><span>${L("tatsaechlichUebrig")}</span><span class="wert">${sv.saldoMedian>=0?"+":""}${f0(sv.saldoMedian)} €</span></div>
+     <div class="reihe"><span>${L("tatsaechlichMittel")}</span><span class="wert">${sv.saldoMittelwert>=0?"+":""}${f0(sv.saldoMittelwert)} €</span></div>
+     <p class="finfo" style="margin-top:6px">${L("sparNegativeMonate")(sv.negativeMonate,sv.gesamtMonate)}</p>
      <p class="finfo">${L("sparRealitaetscheck")}</p>`;
    })()}</div>`;
 }
@@ -1388,13 +1469,13 @@ function budgets(){
      return`<div class="feldzeile" style="align-items:flex-start"><div><label for="${id}">${l}</label><div class="finfo">${h}</div>
      ${vs?(vs.volatil?`<div class="finfo" style="margin-top:5px">${L("budgetZuVolatil")(f0(vs.min),f0(vs.max))}</div>`
        :`<div class="finfo" data-budget-vorschlag="${id}" data-vorschlag-wert="${vs.vorschlag}" style="cursor:pointer;text-decoration:underline dashed;margin-top:5px">${L("budgetVorschlagText")(f0(vs.vorschlag),vs.monate.join(", "))} <span style="opacity:.7">(${f0(vs.min)}–${f0(vs.max)} €)</span></div>`):""}</div>
-     <input class="zahlfeld" id="${id}" inputmode="decimal" value="${b[id]}"></div>`;
+     <input class="zahlfeld" id="${id}" inputmode="decimal" placeholder="${L("keinBudgetGesetzt")}" value="${b[id]==null?"":b[id]}"></div>`;
    }).join("")}
    <p class="finfo" style="margin-top:14px;line-height:1.6">${L("budgetErklaerung")}</p></div>
   <div class="karte"><h2>${L("umgerechnet")}</h2>
-   <div class="reihe"><span>${L("lebensmittelMonat")}</span><span class="wert">${f0(b.w_lebensmittel*4.35)} €</span></div>
-   <div class="reihe"><span>${L("auswaertsMonat")}</span><span class="wert">${f0(b.w_auswaerts*4.35)} €</span></div>
-   <div class="reihe stark"><span>${L("alleToepfe")}</span><span class="wert">${f0(b.w_lebensmittel*4.35+b.w_auswaerts*4.35+b.m_shopping+b.m_freizeit)} €</span></div></div>
+   <div class="reihe"><span>${L("lebensmittelMonat")}</span><span class="wert">${f0((b.w_lebensmittel||0)*4.35)} €</span></div>
+   <div class="reihe"><span>${L("auswaertsMonat")}</span><span class="wert">${f0((b.w_auswaerts||0)*4.35)} €</span></div>
+   <div class="reihe stark"><span>${L("alleToepfe")}</span><span class="wert">${f0((b.w_lebensmittel||0)*4.35+(b.w_auswaerts||0)*4.35+(b.m_shopping||0)+(b.m_freizeit||0))} €</span></div></div>
   <div class="karte"><h2>${L("csvHeading")}</h2>
    <p class="text">${L("csvText")}</p>
    <label class="sekundaer" style="display:block;text-align:center;cursor:pointer;margin-top:0">${L("csvDateiWaehlen")}
@@ -1451,9 +1532,9 @@ function importAnsicht(){
    <button class="sekundaer" id="impAbbrechen">${L("abbrechen")}</button></div>`;
 }
 
-const datumKurz=ts=>{const d=new Date(ts);return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear()};
+const datumKurz=ts=>{const d=new Date(ts);return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+String(d.getFullYear()).slice(-2)};
 const MONATSNAMEN={de:["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"],en:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]};
-const bezugsmonatLabel=bm=>bm?L("bezugsmonatHinweis")(MONATSNAMEN[lang][bm.monat],bm.jahr):"";
+const bezugsmonatLabel=bm=>bm&&bm.jahr!=null?L("bezugsmonatHinweis")(MONATSNAMEN[lang][bm.monat],bm.jahr):"";
 
 function aboVorschlaegeAnsicht(){
   const a=aboAnalyse,n=a.fixkosten.filter(v=>v.drin).length;
@@ -1553,7 +1634,11 @@ function binden(){
     S.eintraege=S.eintraege.filter(e=>e.id!==b.dataset.del);sichern();render()});
   ["w_lebensmittel","w_auswaerts","m_shopping","m_freizeit"].forEach(id=>{
     const el=document.getElementById(id);
-    if(el)el.onchange=e=>{S.budget[id]=Math.max(0,parseFloat(e.target.value.replace(",","."))||0);sichern();render()}});
+    if(el)el.onchange=e=>{
+      const roh=e.target.value.trim();
+      if(roh===""){S.budget[id]=null}
+      else{const v=parseFloat(roh.replace(",","."));S.budget[id]=isNaN(v)?null:Math.max(0,v)}
+      sichern();render()}});
   document.querySelectorAll("[data-theme-set]").forEach(b=>b.onclick=()=>{
     theme=b.dataset.themeSet;localStorage.setItem("kontur:theme",theme);themeAnwenden();render()});
   document.querySelectorAll("[data-lang-set]").forEach(b=>b.onclick=()=>{
@@ -1591,7 +1676,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{},schulden:d.schulden||[],kontostand:d.kontostand||null};sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{},schulden:d.schulden||[],kontostand:d.kontostand||null,umzugsdatum:d.umzugsdatum||null};bereinigeDoppelteAbos();sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -1674,6 +1759,8 @@ function binden(){
       if(gesamtbetrag<=0)return;
       eintrag.gesamtbetrag=gesamtbetrag;eintrag.startDatum=datumTs(f.startDatum);
     }
+    const nSchuld=normalisiere(name);
+    S.abos=S.abos.filter(a=>{const nA=normalisiere(a.name);return!(nA===nSchuld||nA.includes(nSchuld)||nSchuld.includes(nA))});
     S.schulden.push(eintrag);sichern();schuldForm=null;render();toast(L("tSchuldHinzugefuegt"))};
   document.querySelectorAll("[data-schuld-loeschen]").forEach(b=>b.onclick=()=>{
     S.schulden=S.schulden.filter(x=>x.id!==b.dataset.schuldLoeschen);sichern();render()});
@@ -1684,7 +1771,7 @@ function binden(){
 function bindenLoeschen(){
   const ja=document.getElementById("loeschenJa");
   if(ja)ja.onclick=()=>{
-    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null};
+    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null};
     loeschenBestaetigen=false;sichern();tab="erfassen";render();toast(L("tAllesGeloescht"))};
   const ab=document.getElementById("loeschenAbbrechen");
   if(ab)ab.onclick=()=>{loeschenBestaetigen=false;render()};
