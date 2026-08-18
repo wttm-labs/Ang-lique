@@ -243,8 +243,23 @@ const T={
   saldoText:"Einnahmen minus Ausgaben — für Geld, das unerwartet reinkommt, buche es oben als Einnahme statt als Ausgabe.",
   einnahmenMonat:"Einnahmen",ausgabenMonat:"Ausgaben",saldoMonat:"Bleibt",
   einkommenMonat:"Einkommen",rueckflussMonat:"Rückflüsse",
-  gehaltErwartetLabel:t=>`Gehalt erwartet um den ${t}.`,gehaltErwartetBetrag:b=>`rund ${b} €`,
-  saldoDanachLabel:"Saldo danach ca.",
+  ausgabenBisher:"Ausgaben bisher",saldoMonatsendeLabel:"Saldo Monatsende ca.",
+  keineEinkommensdaten:"Noch keine Einkommensbuchungen — importiere CSV-Daten oder buche Einkommen manuell, dann rechnet die App den Zahltag und das Grundgehalt selbst aus.",
+  einkommenLabel_erwartet:"Einkommen erwartet",einkommenLabel_eingegangen:"Einkommen eingegangen",einkommenLabel_ausstehend:"Einkommen ausstehend",
+  einkommenErwartetText:(wt,d,t)=>`erwartet ${wt}, ${d} · in ${t} Tag${t===1?"":"en"}`,
+  einkommenErwartetHeute:"erwartet heute",
+  einkommenEingegangenText:d=>`eingegangen am ${d}`,
+  einkommenAusstehendText:(d,t)=>`erwartet am ${d} · noch nicht eingegangen (${t} Tag${t===1?"":"e"} überfällig)`,
+  bonusErkanntText:b=>`+ ${b} € über Grundgehalt — Bonus?`,
+  bonusBezeichnungPlatzh:"Bezeichnung, z. B. Bonus, Urlaubsgeld",
+  bonusBestaetigen:"Bestätigen",bonusStandardname:"Bonus",
+  bonusBestaetigtText:(b,name)=>`+ ${b} € über Grundgehalt · ${name}`,
+  grundgehaltLabel:g=>`Grundgehalt ${g} € · Boni nachtragen`,
+  grundgehaltErklaerung:"Automatisch aus deinen niedrigsten Gehaltseingängen berechnet, damit Bonusmonate die Prognose nicht nach oben verzerren. Bei Vertragsänderung hier überschreiben:",
+  automatischPlatzh:g=>`automatisch: ${g} €`,
+  zusatzeinnahmeHeading:"Zusätzliche Einnahme erwartet (Bonus, Urlaubsgeld, Weihnachtsgeld, Steuerrückzahlung …)",
+  betragPlatzh:"Betrag in €",zusatzeinnahmeOhneName:"Zusätzliche Einnahme",
+  tZusatzeinnahmeHinzugefuegt:"Zusätzliche Einnahme vorgemerkt",tBonusBestaetigt:"Bonus bestätigt",
   einnahme:"Einnahme",notizEinnahmePlaceholder:"Notiz, z. B. Rückerstattung",
   einkommen:"Einkommen",rueckfluss:"Rückfluss",
   schnittText:"Median aus deinen abgeschlossenen Monaten, daneben was du diesen Monat gebucht hast. Der Wert nach dem Schrägstrich lässt sich direkt antippen und überschreiben.",
@@ -385,8 +400,23 @@ const T={
   saldoText:"Income minus expenses — for money that comes in unexpectedly, log it above as income instead of an expense.",
   einnahmenMonat:"Income",ausgabenMonat:"Expenses",saldoMonat:"Left over",
   einkommenMonat:"Income",rueckflussMonat:"Refunds",
-  gehaltErwartetLabel:t=>`Salary expected around the ${t}`,gehaltErwartetBetrag:b=>`roughly ${b} €`,
-  saldoDanachLabel:"Balance after that, roughly",
+  ausgabenBisher:"Spent so far",saldoMonatsendeLabel:"Balance at month end, roughly",
+  keineEinkommensdaten:"No income booked yet — import CSV data or log income manually, then the app works out payday and base salary itself.",
+  einkommenLabel_erwartet:"Income expected",einkommenLabel_eingegangen:"Income received",einkommenLabel_ausstehend:"Income overdue",
+  einkommenErwartetText:(wt,d,t)=>`expected ${wt}, ${d} · in ${t} day${t===1?"":"s"}`,
+  einkommenErwartetHeute:"expected today",
+  einkommenEingegangenText:d=>`received on ${d}`,
+  einkommenAusstehendText:(d,t)=>`expected on ${d} · not received yet (${t} day${t===1?"":"s"} overdue)`,
+  bonusErkanntText:b=>`+ ${b} € above base salary — bonus?`,
+  bonusBezeichnungPlatzh:"Label, e.g. Bonus, Vacation pay",
+  bonusBestaetigen:"Confirm",bonusStandardname:"Bonus",
+  bonusBestaetigtText:(b,name)=>`+ ${b} € above base salary · ${name}`,
+  grundgehaltLabel:g=>`Base salary ${g} € · add bonus`,
+  grundgehaltErklaerung:"Computed automatically from your lowest salary payments, so bonus months don't skew the forecast upward. Override here if your contract changes:",
+  automatischPlatzh:g=>`automatic: ${g} €`,
+  zusatzeinnahmeHeading:"Additional income expected (bonus, vacation pay, holiday pay, tax refund …)",
+  betragPlatzh:"Amount in €",zusatzeinnahmeOhneName:"Additional income",
+  tZusatzeinnahmeHinzugefuegt:"Additional income noted",tBonusBestaetigt:"Bonus confirmed",
   einnahme:"Income",notizEinnahmePlaceholder:"Note, e.g. refund",
   einkommen:"Earnings",rueckfluss:"Refund",
   schnittText:"Median from your completed months, next to what you've logged this month. Tap the number after the slash to edit it directly.",
@@ -624,7 +654,7 @@ function klarnaMonatsschnitt(){
   return median(monate.map(m=>monatsSummen[m]));
 }
 
-let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null,grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:[],bestaetigteBoni:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0,importQuelle="csv";
 let bildVerarbeitung=false,bildFehler=null;
 let manAboName="",manAboBetrag="",manAboZyklus="monat",manAboDatum=isoDatum(new Date());
@@ -633,6 +663,9 @@ let aboAnalyse=null;
 let loeschenBestaetigen=false;
 let schuldForm=null;
 let kontoverlaufFenster=30;
+let einkommenDetailOffen=false;
+let zusatzForm={betrag:"",datum:isoDatum(new Date()),bezeichnung:""};
+let bonusNameEntwurf={};
 let settingsOffen=false;
 let theme=localStorage.getItem("kontur:theme")||(matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
 let lang=localStorage.getItem("kontur:lang")||"de";
@@ -650,7 +683,7 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};S.schulden=d.schulden||[];S.kontostand=d.kontostand||null;S.umzugsdatum=d.umzugsdatum||null;migriereBudgetNull(d);bereinigeDoppelteAbos();return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};S.schulden=d.schulden||[];S.kontostand=d.kontostand||null;S.umzugsdatum=d.umzugsdatum||null;S.grundgehaltUeberschreibung=d.grundgehaltUeberschreibung!=null?d.grundgehaltUeberschreibung:null;S.erwarteteZusatzeinnahmen=d.erwarteteZusatzeinnahmen||[];S.bestaetigteBoni=d.bestaetigteBoni||{};migriereBudgetNull(d);bereinigeDoppelteAbos();aktualisiereZusatzeinnahmenAbgleich();return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
@@ -1442,20 +1475,61 @@ function sparvorschlag(){
   return{von,bis,saldoMedian,saldoMittelwert,negativeMonate,gesamtMonate:monate.length,einkommenMedian,fixkostenGesamt};
 }
 
-function gehaltErwartung(){
-  const heute=new Date(),aktMonat=mk(heute);
-  const proMonat={},tage=[];
-  S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen").forEach(e=>{
-    const d=new Date(e.ts),m=mk(d);
-    if(m===aktMonat)return;
-    proMonat[m]=(proMonat[m]||0)+e.betrag;
-    tage.push(d.getDate());
+function letzterBankarbeitstag(jahr,monatIdx){
+  const letzterTag=new Date(jahr,monatIdx+1,0,12,0,0);
+  const wt=letzterTag.getDay();
+  if(wt===0)letzterTag.setDate(letzterTag.getDate()-2);
+  else if(wt===6)letzterTag.setDate(letzterTag.getDate()-1);
+  return letzterTag;
+}
+function grundgehaltAutomatisch(){
+  const betraege=S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen").map(e=>e.betrag).sort((a,b)=>a-b);
+  if(!betraege.length)return null;
+  return median(betraege.slice(0,Math.min(6,betraege.length)));
+}
+function grundgehalt(){
+  if(S.grundgehaltUeberschreibung!=null)return S.grundgehaltUeberschreibung;
+  return grundgehaltAutomatisch();
+}
+function aktualisiereZusatzeinnahmenAbgleich(){
+  if(!S.erwarteteZusatzeinnahmen||!S.erwarteteZusatzeinnahmen.length)return;
+  let geaendert=false;
+  S.erwarteteZusatzeinnahmen.forEach(z=>{
+    if(z.erledigt)return;
+    const zMonat=mk(new Date(z.datum));
+    const treffer=S.eintraege.find(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen"&&mk(new Date(e.ts))===zMonat);
+    if(treffer){z.erledigt=true;z.gebuchtId=treffer.id;geaendert=true}
   });
-  const monate=Object.keys(proMonat).sort().slice(-6);
-  if(!monate.length)return null;
-  const schonGebucht=S.eintraege.some(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen"&&mk(new Date(e.ts))===aktMonat);
-  if(schonGebucht)return null;
-  return{tag:Math.round(median(tage)),betrag:median(monate.map(m=>proMonat[m]))};
+  if(geaendert)sichern();
+}
+function einkommenMonatStatus(){
+  const heute=new Date(),jahr=heute.getFullYear(),monatIdx=heute.getMonth(),aktMonat=mk(heute);
+  const grund=grundgehalt();
+  const erwarteterTag=letzterBankarbeitstag(jahr,monatIdx);
+  const gebuchteEinkommen=S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen"&&mk(new Date(e.ts))===aktMonat);
+  const summeGebucht=gebuchteEinkommen.reduce((s,e)=>s+e.betrag,0);
+  const hauptbuchung=gebuchteEinkommen.length?gebuchteEinkommen.reduce((a,b)=>a.betrag>b.betrag?a:b):null;
+  const heuteStart=new Date(jahr,monatIdx,heute.getDate());
+  const erwarteterTagStart=new Date(jahr,monatIdx,erwarteterTag.getDate());
+  const tageDiff=Math.round((erwarteterTagStart-heuteStart)/864e5);
+  const zusatzOffen=(S.erwarteteZusatzeinnahmen||[]).filter(z=>!z.erledigt&&mk(new Date(z.datum))===aktMonat);
+  const zusatzSummeOffen=zusatzOffen.reduce((s,z)=>s+z.betrag,0);
+  let status,anzeigeBetrag,bonusInfo=null;
+  if(hauptbuchung){
+    status="eingegangen";anzeigeBetrag=summeGebucht;
+    if(grund&&hauptbuchung.betrag>grund*1.05){
+      bonusInfo={ueberschuss:hauptbuchung.betrag-grund,eintragId:hauptbuchung.id,
+        bestaetigt:!!(S.bestaetigteBoni&&S.bestaetigteBoni[hauptbuchung.id])};
+    }
+  }else if(tageDiff>=0){
+    status="erwartet";anzeigeBetrag=grund;
+  }else{
+    status="ausstehend";anzeigeBetrag=grund;
+  }
+  const basis=status==="eingegangen"?summeGebucht:(grund||0);
+  return{status,anzeigeBetrag,grund,erwarteterTag,tage:Math.abs(tageDiff),bonusInfo,
+    gebuchtAm:hauptbuchung?hauptbuchung.ts:null,
+    zusatzOffen,zusatzSummeOffen,prognoseGesamt:basis+zusatzSummeOffen};
 }
 
 function referenz(z){
@@ -1471,19 +1545,44 @@ function referenz(z){
   });
   const vormonat=new Date(heute.getFullYear(),heute.getMonth()-1,1),vmKey=mk(vormonat);
   const vmSumme=id=>S.eintraege.filter(e=>e.kat===id&&mk(new Date(e.ts))===vmKey).reduce((s,e)=>s+e.betrag,0);
-  const einkommenMonat=S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="einkommen"&&mk(new Date(e.ts))===mk(heute)).reduce((s,e)=>s+e.betrag,0);
   const rueckflussMonat=S.eintraege.filter(e=>e.typ==="einnahme"&&e.einnahmeArt==="rueckfluss"&&mk(new Date(e.ts))===mk(heute)).reduce((s,e)=>s+e.betrag,0);
-  const gehalt=gehaltErwartung();
-  const saldo=einkommenMonat+rueckflussMonat-z.monatGesamt;
-  const saldoDanach=einkommenMonat+rueckflussMonat+(gehalt?gehalt.betrag:0)-z.monatGesamt;
+  const es=einkommenMonatStatus();
+  const saldoMonatsende=es.prognoseGesamt+rueckflussMonat-z.monatGesamt;
+  const dOJ=d=>String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+".";
   return`<div class="karte"><h2>${L("saldoHeading")}</h2>
    <p class="text">${L("saldoText")}</p>
-   <div class="reihe"><span>${L("einkommenMonat")}</span><span class="wert">${f0(einkommenMonat)} €</span></div>
-   ${rueckflussMonat?`<div class="reihe"><span>${L("rueckflussMonat")}</span><span class="wert">${f0(rueckflussMonat)} €</span></div>`:""}
-   <div class="reihe"><span>${L("ausgabenMonat")}</span><span class="wert">${f0(z.monatGesamt)} €</span></div>
-   ${gehalt?`<div class="reihe stark"><span>${L("gehaltErwartetLabel")(gehalt.tag)}</span><span class="wert">${L("gehaltErwartetBetrag")(f0(gehalt.betrag))}</span></div>
-   <div class="reihe"><span>${L("saldoDanachLabel")}</span><span class="wert" style="color:${saldoDanach<0?"var(--rot)":"var(--gruen)"}">${saldoDanach>=0?"+":""}${f0(saldoDanach)} €</span></div>`
-   :`<div class="reihe stark"><span>${L("saldoMonat")}</span><span class="wert" style="color:${saldo<0?"var(--rot)":"var(--gruen)"}">${saldo>=0?"+":""}${f0(saldo)} €</span></div>`}</div>
+   ${es.grund==null?`<p class="finfo">${L("keineEinkommensdaten")}</p>`:`
+   <div class="reihe"><span>${L("einkommenLabel_"+es.status)}</span><span class="wert" style="color:${es.status==="ausstehend"?"var(--warn)":"var(--gruen)"}">+${f0(es.anzeigeBetrag)} €</span></div>
+   <p class="finfo" style="margin-top:-6px">${
+     es.status==="erwartet"?(es.tage===0?L("einkommenErwartetHeute"):L("einkommenErwartetText")(WOT[lang][es.erwarteterTag.getDay()],dOJ(es.erwarteterTag),es.tage))
+     :es.status==="eingegangen"?L("einkommenEingegangenText")(dOJ(new Date(es.gebuchtAm)))
+     :L("einkommenAusstehendText")(dOJ(es.erwarteterTag),es.tage)
+   }</p>
+   ${es.status==="eingegangen"&&es.bonusInfo&&!es.bonusInfo.bestaetigt?`
+   <p class="finfo" style="margin-top:6px">${L("bonusErkanntText")(f0(es.bonusInfo.ueberschuss))}</p>
+   <input class="feld" id="bonusName_${es.bonusInfo.eintragId}" placeholder="${L("bonusBezeichnungPlatzh")}" style="margin:6px 0" value="${esc(bonusNameEntwurf[es.bonusInfo.eintragId]||"")}">
+   <button class="chip" data-bonus-bestaetigen="${es.bonusInfo.eintragId}">${L("bonusBestaetigen")}</button>`
+   :es.status==="eingegangen"&&es.bonusInfo&&es.bonusInfo.bestaetigt?`
+   <p class="finfo" style="margin-top:6px">${L("bonusBestaetigtText")(f0(es.bonusInfo.ueberschuss),esc(S.bestaetigteBoni[es.bonusInfo.eintragId].bezeichnung))}</p>`:""}
+   <div class="vert-kopf" data-einkommen-toggle style="cursor:pointer;margin-top:10px">
+    <span>${L("grundgehaltLabel")(f0(es.grund))} ${einkommenDetailOffen?"▾":"▸"}</span>
+   </div>
+   ${einkommenDetailOffen?`<div style="margin-top:10px">
+    <p class="finfo">${L("grundgehaltErklaerung")}</p>
+    <input class="feld" id="grundgehaltUeberschreibung" type="text" inputmode="decimal" placeholder="${L("automatischPlatzh")(f0(grundgehaltAutomatisch()||0))}" value="${S.grundgehaltUeberschreibung!=null?f0(S.grundgehaltUeberschreibung):""}">
+    <p class="finfo" style="margin-top:14px">${L("zusatzeinnahmeHeading")}</p>
+    <input class="feld" id="zusatzBetrag" inputmode="decimal" placeholder="${L("betragPlatzh")}" value="${esc(zusatzForm.betrag)}">
+    <input class="feld" id="zusatzDatum" type="date" value="${zusatzForm.datum}" style="width:auto">
+    <input class="feld" id="zusatzBezeichnung" placeholder="${L("bonusBezeichnungPlatzh")}" value="${esc(zusatzForm.bezeichnung)}">
+    <button class="sekundaer" id="zusatzHinzu">${L("hinzufuegen")}</button>
+    ${(S.erwarteteZusatzeinnahmen||[]).filter(zItem=>!zItem.erledigt).length?`<ul class="liste" style="margin-top:10px">${(S.erwarteteZusatzeinnahmen||[]).filter(zItem=>!zItem.erledigt).sort((a,b)=>a.datum-b.datum).map(zItem=>`<li class="zeile">
+     <span class="zeile-h">${esc(zItem.bezeichnung||L("zusatzeinnahmeOhneName"))}<span class="zeile-n">${dOJ(new Date(zItem.datum))}</span></span>
+     <span class="wert" style="color:var(--gruen)">+${f0(zItem.betrag)} €</span>
+     <button class="weg" data-zusatz-loeschen="${zItem.id}">×</button></li>`).join("")}</ul>`:""}
+   </div>`:""}`}
+   ${rueckflussMonat?`<div class="reihe" style="margin-top:10px"><span>${L("rueckflussMonat")}</span><span class="wert">${f0(rueckflussMonat)} €</span></div>`:""}
+   <div class="reihe" style="margin-top:${rueckflussMonat?0:10}px"><span>${L("ausgabenBisher")}</span><span class="wert">-${f0(z.monatGesamt)} €</span></div>
+   <div class="reihe stark"><span>${L("saldoMonatsendeLabel")}</span><span class="wert" style="color:${saldoMonatsende<0?"var(--rot)":"var(--gruen)"}">${saldoMonatsende>=0?"+":""}${f0(saldoMonatsende)} €</span></div></div>
   <div class="karte"><h2>${L("deinSchnitt")}</h2>
    <p class="text">${L("schnittText")}</p>
    ${trackKat.map(k=>{
@@ -1741,9 +1840,10 @@ function binden(){
     const istEinnahme=eintragTyp==="einnahme";
     if(!istEinnahme&&notiz.trim())S.gelernt[normalisiere(notiz)]=kat;
     S.eintraege.push(istEinnahme
-      ?{id:Date.now().toString(36),ts,betrag:b,kat:null,typ:"einnahme",notiz:notiz.trim()}
+      ?{id:Date.now().toString(36),ts,betrag:b,kat:null,typ:"einnahme",einnahmeArt:"einkommen",notiz:notiz.trim()}
       :{id:Date.now().toString(36),ts,betrag:b,kat,notiz:notiz.trim()});
     S.eintraege.sort((x,y)=>y.ts-x.ts);
+    if(istEinnahme)aktualisiereZusatzeinnahmenAbgleich();
     sichern();wert="";notiz="";datum=isoDatum(new Date());render();toast(L("tGebucht"))};
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     S.eintraege=S.eintraege.filter(e=>e.id!==b.dataset.del);sichern();render()});
@@ -1791,7 +1891,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{},schulden:d.schulden||[],kontostand:d.kontostand||null,umzugsdatum:d.umzugsdatum||null};bereinigeDoppelteAbos();sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{},schulden:d.schulden||[],kontostand:d.kontostand||null,umzugsdatum:d.umzugsdatum||null,grundgehaltUeberschreibung:d.grundgehaltUeberschreibung!=null?d.grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:d.erwarteteZusatzeinnahmen||[],bestaetigteBoni:d.bestaetigteBoni||{}};bereinigeDoppelteAbos();aktualisiereZusatzeinnahmenAbgleich();sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -1886,12 +1986,46 @@ function binden(){
     S.schulden=S.schulden.filter(x=>x.id!==b.dataset.schuldLoeschen);sichern();render()});
   document.querySelectorAll("[data-konto-fenster]").forEach(b=>b.onclick=()=>{
     kontoverlaufFenster=parseInt(b.dataset.kontoFenster,10);render()});
+  const eToggle=document.querySelector("[data-einkommen-toggle]");
+  if(eToggle)eToggle.onclick=()=>{einkommenDetailOffen=!einkommenDetailOffen;render()};
+  const ggU=document.getElementById("grundgehaltUeberschreibung");
+  if(ggU)ggU.onchange=e=>{
+    const v=parseFloat(e.target.value.replace(",","."));
+    S.grundgehaltUeberschreibung=(e.target.value.trim()===""||isNaN(v))?null:v;
+    sichern();render()};
+  const zB=document.getElementById("zusatzBetrag");
+  if(zB)zB.oninput=e=>{zusatzForm.betrag=e.target.value};
+  const zD=document.getElementById("zusatzDatum");
+  if(zD)zD.onchange=e=>{zusatzForm.datum=e.target.value};
+  const zBz=document.getElementById("zusatzBezeichnung");
+  if(zBz)zBz.oninput=e=>{zusatzForm.bezeichnung=e.target.value};
+  const zH=document.getElementById("zusatzHinzu");
+  if(zH)zH.onclick=()=>{
+    const betrag=parseFloat(zusatzForm.betrag.replace(",","."));
+    if(!betrag||betrag<=0||!zusatzForm.datum)return;
+    const[jj,mm,tt]=zusatzForm.datum.split("-").map(Number);
+    S.erwarteteZusatzeinnahmen=S.erwarteteZusatzeinnahmen||[];
+    S.erwarteteZusatzeinnahmen.push({id:"zus"+Date.now(),betrag,datum:new Date(jj,mm-1,tt,12,0,0).getTime(),
+      bezeichnung:zusatzForm.bezeichnung.trim(),erledigt:false,gebuchtId:null});
+    sichern();zusatzForm={betrag:"",datum:isoDatum(new Date()),bezeichnung:""};
+    aktualisiereZusatzeinnahmenAbgleich();render();toast(L("tZusatzeinnahmeHinzugefuegt"))};
+  document.querySelectorAll("[data-zusatz-loeschen]").forEach(b=>b.onclick=()=>{
+    S.erwarteteZusatzeinnahmen=(S.erwarteteZusatzeinnahmen||[]).filter(z=>z.id!==b.dataset.zusatzLoeschen);
+    sichern();render()});
+  document.querySelectorAll("[data-bonus-bestaetigen]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.bonusBestaetigen;
+    const nameFeld=document.getElementById("bonusName_"+id);
+    const bezeichnung=(nameFeld?nameFeld.value:"").trim()||L("bonusStandardname");
+    S.bestaetigteBoni=S.bestaetigteBoni||{};
+    S.bestaetigteBoni[id]={bezeichnung};
+    delete bonusNameEntwurf[id];
+    sichern();render();toast(L("tBonusBestaetigt"))});
 }
 
 function bindenLoeschen(){
   const ja=document.getElementById("loeschenJa");
   if(ja)ja.onclick=()=>{
-    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null};
+    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null,grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:[],bestaetigteBoni:{}};
     loeschenBestaetigen=false;sichern();tab="erfassen";render();toast(L("tAllesGeloescht"))};
   const ab=document.getElementById("loeschenAbbrechen");
   if(ab)ab.onclick=()=>{loeschenBestaetigen=false;render()};
@@ -1934,6 +2068,7 @@ function bindenImport(){
     if(neue.length)S.marken.import=true;
     neue.forEach(r=>{if(r.notiz&&r.typ!=="einnahme")S.gelernt[normalisiere(r.notiz)]=r.kat});
     S.eintraege=S.eintraege.concat(neue).sort((a,b)=>b.ts-a.ts);
+    aktualisiereZusatzeinnahmenAbgleich();
     sichern();const n=neue.length;importRows=null;importText="";
     const a=analysiereAbos();a.fixkosten.forEach(v=>v.drin=true);
     if(a.fixkosten.length||a.beendet.length||a.preisfragen.length){aboAnalyse=a}
