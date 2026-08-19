@@ -345,6 +345,7 @@ const T={
   parallelText:(n,kat,namen,summe)=>`${n}× in "${kat}" gleichzeitig aktiv: ${namen} — zusammen ${summe} €/Monat.`,
   jahresabrechnungHinweis:b=>`zusätzlich Jahresabrechnung ~${b} € nicht mitgerechnet`,
   bezugsmonatHinweis:(m,j)=>`für ${m} ${j}`,semantischErkannt:"anhand des Verwendungszwecks erkannt, nicht statistisch",
+  mieteLabel:"Miete",mieteGemindertLabel:"Miete (gemindert)",
   unsicherHeading:"Wahrscheinlich wiederkehrend, unregelmäßig",
   unsicherText:"Kommt öfter vor, aber Betrag oder Abstand schwanken zu stark für eine automatische Einstufung. Selbst entscheiden:",
   unsicherJa:"Ja, wiederkehrend",unsicherNein:"Nein, kein Muster",
@@ -502,6 +503,7 @@ const T={
   parallelText:(n,kat,namen,summe)=>`${n}× active at once in "${kat}": ${namen} — ${summe} €/month combined.`,
   jahresabrechnungHinweis:b=>`plus ~${b} € annual bill excluded from the average`,
   bezugsmonatHinweis:(m,j)=>`for ${m} ${j}`,semantischErkannt:"detected from the payment reference, not statistically",
+  mieteLabel:"Rent",mieteGemindertLabel:"Rent (reduced)",
   unsicherHeading:"Probably recurring, but irregular",
   unsicherText:"Happens repeatedly, but amount or timing vary too much for an automatic call. Decide yourself:",
   unsicherJa:"Yes, recurring",unsicherNein:"No, no pattern",
@@ -866,9 +868,14 @@ function trenneJahresabrechnung(eintraege){
   return{normal,jahresabrechnungen};
 }
 const SEMANTISCHE_FIXKOSTEN_KEYWORDS=["miete","mietzahlung","kaltmiete","warmmiete","untermiete",
- "abschlag","beitrag","versicherung","\\brate\\b","darlehen","tilgung","rundfunkbeitrag","mobilfunk","festnetz"];
+ "abschlag","beitrag","rundfunk","versicherung","\\brate\\b","darlehen","tilgung","mobilfunk","festnetz"];
 function hatSemantischesSignal(eintraege){
   const re=new RegExp(SEMANTISCHE_FIXKOSTEN_KEYWORDS.join("|"),"i");
+  return eintraege.some(e=>re.test(e.zweck||e.notiz||""));
+}
+const MIETE_KEYWORDS=["miete","mietzahlung","kaltmiete","warmmiete","untermiete"];
+function hatMieteSignal(eintraege){
+  const re=new RegExp(MIETE_KEYWORDS.join("|"),"i");
   return eintraege.some(e=>re.test(e.zweck||e.notiz||""));
 }
 function gruppenBilden(eintraege){
@@ -886,18 +893,18 @@ function gruppenBilden(eintraege){
         if(vk)(mitKennung[vk]=mitKennung[vk]||[]).push(e);else ohneKennung.push(e);
       });
       Object.entries(mitKennung).forEach(([vk,es])=>{
-        finalGruppen.push({schluessel:hSchluessel+"|"+vk,eintraege:es,kartenAbo:istKarte,kartenErlaubt,semantisch:hatSemantischesSignal(es)});
+        finalGruppen.push({schluessel:hSchluessel+"|"+vk,eintraege:es,kartenAbo:istKarte,kartenErlaubt,semantisch:hatSemantischesSignal(es),mieteSignal:hatMieteSignal(es)});
       });
       if(ohneKennung.length){
-        const semantisch=hatSemantischesSignal(ohneKennung);
+        const semantisch=hatSemantischesSignal(ohneKennung),mieteSignal=hatMieteSignal(ohneKennung);
         const grobeCluster=(istKarte||semantisch)?[ohneKennung]:clustereBetraegeEinfach(ohneKennung);
         if(grobeCluster.length<=3){
           const betragsCluster=(istKarte||semantisch)?[ohneKennung]:clustereBetraege(ohneKennung);
           betragsCluster.forEach((c,i)=>{
-            finalGruppen.push({schluessel:hSchluessel+(betragsCluster.length>1?"#"+i:""),eintraege:c,kartenAbo:istKarte,kartenErlaubt,semantisch});
+            finalGruppen.push({schluessel:hSchluessel+(betragsCluster.length>1?"#"+i:""),eintraege:c,kartenAbo:istKarte,kartenErlaubt,semantisch,mieteSignal});
           });
         }else{
-          finalGruppen.push({schluessel:hSchluessel,eintraege:ohneKennung,kartenAbo:istKarte,kartenErlaubt,semantisch});
+          finalGruppen.push({schluessel:hSchluessel,eintraege:ohneKennung,kartenAbo:istKarte,kartenErlaubt,semantisch,mieteSignal});
         }
       }
     });
@@ -971,12 +978,12 @@ function analysiereAbos(){
   const bekanntListe=[...S.fix.map(f=>normalisiere(nameVon(f))),...S.abos.map(a=>normalisiere(a.name)),...(S.schulden||[]).map(s=>normalisiere(s.name))].filter(Boolean);
   const heute=Date.now();
   const fixkosten=[],beendet=[],gewohnheiten=[],preisfragen=[],unsicher=[];
-  gruppen.forEach(({schluessel,eintraege,kartenAbo,kartenErlaubt,semantisch})=>{
+  gruppen.forEach(({schluessel,eintraege,kartenAbo,kartenErlaubt,semantisch,mieteSignal})=>{
     if(eintraege.length<3)return;
     const{normal,jahresabrechnungen}=trenneJahresabrechnung(eintraege);
     if(normal.length<3)return;
-    const name=anzeigename(normal);
-    const nName=normalisiere(name);
+    const name=mieteSignal?L("mieteLabel"):anzeigename(normal);
+    const nName=normalisiere(mieteSignal?anzeigename(normal):name);
     if(bekanntListe.some(b=>nName===b||nName.includes(b)||b.includes(nName)))return;
     const regel=(S.abRegeln||{})[schluessel];
     if(regel&&regel.ignoriert)return;
@@ -995,7 +1002,10 @@ function analysiereAbos(){
       if(tageSeitLetzter>inaktivSchwelle){beendet.push(eintrag);return}
       if(eintrag.semantisch){
         const pa=erkennePreisAenderung(k);
-        if(pa)eintrag.verlauf={aktion:"preisaenderung",alterBetrag:pa.alterBetrag,neuerBetrag:pa.neuerBetrag,seitTs:pa.seitTs};
+        if(pa){
+          eintrag.verlauf={aktion:"preisaenderung",alterBetrag:pa.alterBetrag,neuerBetrag:pa.neuerBetrag,seitTs:pa.seitTs};
+          if(mieteSignal&&pa.neuerBetrag<pa.alterBetrag)eintrag.name=L("mieteGemindertLabel");
+        }
       }else if(!regel||!regel.preisEntscheidung){
         const pa=erkennePreisAenderung(k);
         if(pa){preisfragen.push({...eintrag,...pa});return}
