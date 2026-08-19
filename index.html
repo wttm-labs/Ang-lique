@@ -228,9 +228,21 @@ const T={
   keineSchulden:"Noch keine Schulden erfasst.",
   klarnaHinweis:"Aktive Zahlkarte, keine Kreditverbindlichkeit — nur der monatliche Umsatz wird gezeigt.",
   klarnaMonatsschnitt:"Schnitt letzte 3 Monate",
-  klarnaOffeneRechnung:"Offene Rechnung",
-  klarnaBetragPlatzh:"Offener Betrag in €",klarnaRatenAnzahlPlatzh:"Anzahl offener Raten",
+  klarnaOffeneRechnung:"Offene Rechnung",klarnaOffeneSumme:"Offene Posten insgesamt",
+  klarnaBetragPlatzh:"Betrag in €",klarnaRatenAnzahlPlatzh:"Anzahl offener Raten",
   klarnaRatenBearbeitungPlatzh:"Davon in Bearbeitung, in €",
+  klarnaBezeichnungPlatzh:"Bezeichnung, z. B. Zalando Bestellung",
+  klarnaStatusOffen:"Offen",klarnaStatusBearbeitung:"In Bearbeitung",klarnaStatusGebucht:"Abgebucht",
+  klarnaPostenHinzufuegen:"Posten hinzufügen",
+  tKlarnaPostenHinzugefuegt:"Posten hinzugefügt",
+  aktuellerSaldoLabel:"Aktueller Saldo",
+  saldoGeprueftAm:d=>`zuletzt geprüft am ${d}`,saldoNochNichtGeprueft:"noch nicht geprüft — trag den Saldo aus deiner Banking-App ein",
+  autoBuchungAn:"Automatische Buchung an",autoBuchungAus:"Automatische Buchung aus",
+  autoBuchungErklaerung:"Bucht jeden abgeschlossenen Monat automatisch die Rate und schreibt den Saldo fort, weil das auf dem echten Konto sowieso passiert. Ausschalten, falls du lieber selbst buchen willst.",
+  letzteAutoBuchungText:m=>`Zuletzt automatisch gebucht: ${m}`,
+  zahlungsschutzKurzLabel:"Zahlungsschutz",keinZahlungsschutz:"keiner",
+  zahlungsschutzEntfernen:"Zahlungsschutz entfernen",
+  tZahlungsschutzEntfernt:"Zahlungsschutz entfernt",
   tSchuldHinzugefuegt:"Schuld hinzugefügt",
   baldFaellig:"Diese Woche fällig",heute:"heute",
   badgeWoche:(w,W)=>`Woche ${w} von ${W}`,zykWoche:(w,W)=>`Woche ${w} von ${W}`,
@@ -413,9 +425,21 @@ const T={
   keineSchulden:"No debts tracked yet.",
   klarnaHinweis:"Active payment card, not a debt — only the monthly spend is shown.",
   klarnaMonatsschnitt:"Average of the last 3 months",
-  klarnaOffeneRechnung:"Open invoice",
-  klarnaBetragPlatzh:"Open amount in €",klarnaRatenAnzahlPlatzh:"Number of open installments",
+  klarnaOffeneRechnung:"Open invoice",klarnaOffeneSumme:"Total open items",
+  klarnaBetragPlatzh:"Amount in €",klarnaRatenAnzahlPlatzh:"Number of open installments",
   klarnaRatenBearbeitungPlatzh:"Of which in progress, in €",
+  klarnaBezeichnungPlatzh:"Label, e.g. Zalando order",
+  klarnaStatusOffen:"Open",klarnaStatusBearbeitung:"In progress",klarnaStatusGebucht:"Debited",
+  klarnaPostenHinzufuegen:"Add item",
+  tKlarnaPostenHinzugefuegt:"Item added",
+  aktuellerSaldoLabel:"Current balance",
+  saldoGeprueftAm:d=>`last checked on ${d}`,saldoNochNichtGeprueft:"not checked yet — enter the balance from your banking app",
+  autoBuchungAn:"Auto-booking on",autoBuchungAus:"Auto-booking off",
+  autoBuchungErklaerung:"Automatically books the payment for each completed month and carries the balance forward, since that happens on the real account anyway. Turn off if you'd rather book it yourself.",
+  letzteAutoBuchungText:m=>`Last auto-booked: ${m}`,
+  zahlungsschutzKurzLabel:"Payment protection",keinZahlungsschutz:"none",
+  zahlungsschutzEntfernen:"Remove payment protection",
+  tZahlungsschutzEntfernt:"Payment protection removed",
   tSchuldHinzugefuegt:"Debt added",
   baldFaellig:"Due this week",heute:"today",
   badgeWoche:(w,W)=>`Week ${w} of ${W}`,zykWoche:(w,W)=>`Week ${w} of ${W}`,
@@ -699,9 +723,14 @@ function berechneSchuldStatus(s){
     verlauf=ratenverlaufFuer(s.name);
     trend=ratenTrend(verlauf);
     rate=verlauf.length?verlauf[verlauf.length-1].betrag:(s.letzteRate||0);
-    const mindestrateProzent=s.mindestrateProzent||5;
-    restAktuell=mindestrateProzent>0?rate/(mindestrateProzent/100):0;
-    geschaetzt=true;
+    if(s.aktuellerSaldoOverride!=null){
+      restAktuell=s.aktuellerSaldoOverride;
+      geschaetzt=false;
+    }else{
+      const mindestrateProzent=s.mindestrateProzent||5;
+      restAktuell=mindestrateProzent>0?rate/(mindestrateProzent/100):0;
+      geschaetzt=true;
+    }
     startbetrag=s.restsaldoStart!=null?s.restsaldoStart:null;
   }else if(s.modus==="gesamt"){
     startbetrag=s.gesamtbetrag;
@@ -724,6 +753,39 @@ function berechneSchuldStatus(s){
   const mitErhoehterRate=simuliereSchuld(restAktuell,erhoehteRate,zusatz,zins,zyklus,1200,zsProzent);
   return{restAktuell,startbetrag,bezahltePerioden,zyklus,rate,kuenftig,ohneZusatz,erhoehteRate,mitErhoehterRate,verlauf,trend,geschaetzt};
 }
+function autoBucheFaelligeSchulden(){
+  const heute=new Date(),aktMonatKey=mk(heute);
+  const neueBuchungen=[];
+  (S.schulden||[]).forEach(s=>{
+    if(s.modus!=="rate"||s.autoBuchungAktiv===false||s.aktuellerSaldoOverride==null)return;
+    const st=berechneSchuldStatus(s);
+    const rate=st.rate||s.letzteRate||0;
+    if(rate<=0)return;
+    let basisMonat=s.letzteAutoBuchungMonat||mk(new Date(s.aktuellerSaldoOverrideDatum||heute));
+    let[jj,mm]=basisMonat.split("-").map(Number);
+    let saldo=s.aktuellerSaldoOverride,gebucht=false,iterationen=0;
+    while(iterationen<24){
+      iterationen++;
+      mm++;if(mm>12){mm=1;jj++}
+      const monatKey=jj+"-"+String(mm).padStart(2,"0");
+      if(monatKey>=aktMonatKey)break;
+      const sim=simuliereSchuld(saldo,rate,s.zusatzkosten||0,s.sollzins||0,"monat",1,s.zahlungsschutzProzent||0);
+      if(sim.perioden<1)break;
+      saldo=sim.restNachPerioden;
+      const tag=Math.min(15,tim(new Date(jj,mm-1,1)));
+      neueBuchungen.push({id:"auto"+Date.now()+Math.random().toString(36).slice(2,6),
+        ts:new Date(jj,mm-1,tag,12,0,0).getTime(),betrag:Math.round(rate*100)/100,
+        typ:"ausgabe",kat:"sonstiges",notiz:s.name,autoGebucht:true,schuldId:s.id});
+      basisMonat=monatKey;gebucht=true;
+    }
+    if(gebucht){s.aktuellerSaldoOverride=Math.round(saldo*100)/100;s.letzteAutoBuchungMonat=basisMonat}
+  });
+  if(neueBuchungen.length){
+    S.eintraege=S.eintraege.concat(neueBuchungen).sort((a,b)=>b.ts-a.ts);
+    sichern();
+  }
+  return neueBuchungen.length;
+}
 function klarnaMonatsschnitt(){
   const heute=new Date(),monatsSummen={};
   S.eintraege.filter(e=>e.typ!=="einnahme"&&/klarna/i.test(e.notiz||"")).forEach(e=>{
@@ -735,7 +797,7 @@ function klarnaMonatsschnitt(){
   return median(monate.map(m=>monatsSummen[m]));
 }
 
-let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null,grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:[],bestaetigteBoni:{},gehaltDetails:{},klarnaOffen:{}},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
+let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null,grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:[],bestaetigteBoni:{},gehaltDetails:{},klarnaPosten:[]},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
 let importText="",importRows=null,importFehler=null,importAlleGeparst=[],importVersteckteAnzahl=0,importQuelle="csv";
 let bildVerarbeitung=false,bildFehler=null;
 let manAboName="",manAboBetrag="",manAboZyklus="monat",manAboDatum=isoDatum(new Date());
@@ -746,6 +808,7 @@ let schuldForm=null;
 let kontoverlaufFenster=30;
 let einkommenDetailOffen=false;
 let klarnaDetailOffen=false;
+let klarnaPostenForm={betrag:"",faellig:isoDatum(new Date()),bezeichnung:""};
 let zusatzForm={betrag:"",datum:isoDatum(new Date()),bezeichnung:""};
 let bonusNameEntwurf={};
 let settingsOffen=false;
@@ -765,7 +828,7 @@ function themeAnwenden(){
 function laden(){
   try{
     const r=localStorage.getItem("kontur:daten");
-    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};S.schulden=d.schulden||[];S.kontostand=d.kontostand||null;S.umzugsdatum=d.umzugsdatum||null;S.grundgehaltUeberschreibung=d.grundgehaltUeberschreibung!=null?d.grundgehaltUeberschreibung:null;S.erwarteteZusatzeinnahmen=d.erwarteteZusatzeinnahmen||[];S.bestaetigteBoni=d.bestaetigteBoni||{};S.gehaltDetails=d.gehaltDetails||{};S.klarnaOffen=d.klarnaOffen||{};migriereBudgetNull(d);bereinigeDoppelteAbos();aktualisiereZusatzeinnahmenAbgleich();return}
+    if(r){const d=JSON.parse(r);S.eintraege=d.eintraege||[];S.budget={...STD,...(d.budget||{})};S.marken=d.marken||{};S.abos=d.abos||[];S.gelernt=d.gelernt||{};S.fix=d.fix||[];S.refUeberschreibung=d.refUeberschreibung||{};S.abRegeln=d.abRegeln||{};S.schulden=d.schulden||[];S.kontostand=d.kontostand||null;S.umzugsdatum=d.umzugsdatum||null;S.grundgehaltUeberschreibung=d.grundgehaltUeberschreibung!=null?d.grundgehaltUeberschreibung:null;S.erwarteteZusatzeinnahmen=d.erwarteteZusatzeinnahmen||[];S.bestaetigteBoni=d.bestaetigteBoni||{};S.gehaltDetails=d.gehaltDetails||{};S.klarnaPosten=d.klarnaPosten||[];migriereBudgetNull(d);bereinigeDoppelteAbos();aktualisiereZusatzeinnahmenAbgleich();autoBucheFaelligeSchulden();return}
   }catch(e){}
   const heute=new Date();heute.setHours(12,0,0,0);
   S.eintraege=SEED.map((s,i)=>{
@@ -1504,6 +1567,15 @@ function schulden(){
      <div class="topf-zahl">${f0(st.restAktuell)}<span class="topf-eur">€ ${L("restschuld")}${st.geschaetzt?" · "+L("geschaetztLabel"):""}</span></div>
      ${bezahltAnteil!==null?`<div class="spur"><div class="fuell" style="width:${bezahltAnteil}%;background:${bezahltRoh<0?"var(--rot)":"var(--gruen)"}"></div></div>
      <div class="topf-fuss">${bezahltRoh>=0?L("bezahltAnteilText")(f0(bezahltRoh)):L("bezahltAnteilNegativText")(f0(Math.abs(bezahltRoh)))}</div>`:""}
+     ${s.modus==="rate"?`<div class="feldzeile" style="margin:10px 0"><div><label for="schuldSaldo_${s.id}">${L("aktuellerSaldoLabel")}</label>
+      <div class="finfo">${s.aktuellerSaldoOverrideDatum?L("saldoGeprueftAm")(datumKurz(s.aktuellerSaldoOverrideDatum)):L("saldoNochNichtGeprueft")}</div></div>
+      <input class="zahlfeld" id="schuldSaldo_${s.id}" data-schuld-saldo="${s.id}" type="text" inputmode="decimal" value="${s.aktuellerSaldoOverride!=null?f2(s.aktuellerSaldoOverride):""}"></div>
+     ${s.aktuellerSaldoOverride!=null?`<div class="chips" style="margin-bottom:10px">
+      <button class="chip${s.autoBuchungAktiv!==false?" on":""}" data-schuld-autobuchung="${s.id}">${s.autoBuchungAktiv!==false?L("autoBuchungAn"):L("autoBuchungAus")}</button>
+     </div>
+     <p class="finfo" style="margin-top:-6px">${L("autoBuchungErklaerung")}</p>
+     ${s.letzteAutoBuchungMonat?`<p class="finfo">${L("letzteAutoBuchungText")(s.letzteAutoBuchungMonat)}</p>`:""}`:""}
+     <div class="reihe"><span>${L("zahlungsschutzKurzLabel")}</span><span class="wert">${zsProzent?f2(zsProzent)+" % p.a. ":L("keinZahlungsschutz")}${zsProzent?`<button class="weg" data-schuld-zahlungsschutz-entfernen="${s.id}" title="${L("zahlungsschutzEntfernen")}">×</button>`:""}</span></div>`:""}
      <div class="reihe"><span>${L("sollzinsLabel")}</span><span class="wert">${f2(s.sollzins)} %</span></div>
      <div class="reihe"><span>${zyklus==="quartal"?L("rateQuartal"):L("rateMonat")}</span><span class="wert">${f0(st.rate)} € (${L("davonZins")} ~${f0(zinsAktuell)} €${zsAktuell?" + "+L("zahlungsschutzKurz")+" ~"+f0(zsAktuell)+" €":""})</span></div>
      ${st.trend?`<div class="reihe"><span>${L("ratentrendLabel")}</span><span class="wert">${st.trend.faellt?L("trendFallend")(f0(Math.abs(st.trend.diffProMonat))):st.trend.flach?L("trendFlach"):L("trendSteigend")(f0(st.trend.diffProMonat))}</span></div>
@@ -1516,19 +1588,32 @@ function schulden(){
      <button class="weg" data-schuld-loeschen="${s.id}" style="margin-top:10px">${L("loeschen")}</button>
     </div>`;
   }).join("");
+  const klarnaPostenAlle=(S.klarnaPosten||[]).slice().sort((a,b)=>(a.faellig||Infinity)-(b.faellig||Infinity));
+  const klarnaPostenOffen=klarnaPostenAlle.filter(p=>p.status!=="gebucht");
+  const klarnaSummeOffen=klarnaPostenOffen.reduce((s,p)=>s+p.betrag,0);
   return`${karten}
-  ${klarna?(()=>{const ko=S.klarnaOffen||{};
-   return`<div class="karte"><h2>Klarna</h2><p class="text">${L("klarnaHinweis")}</p>
-   <div class="reihe stark"><span>${L("klarnaMonatsschnitt")}</span><span class="wert">${f0(klarna)} €</span></div>
+  <div class="karte"><h2>Klarna</h2><p class="text">${L("klarnaHinweis")}</p>
+   <div class="reihe stark"><span>${L("klarnaOffeneSumme")}</span><span class="wert">${f0(klarnaSummeOffen)} €</span></div>
+   ${klarna?`<div class="reihe"><span>${L("klarnaMonatsschnitt")}</span><span class="wert">${f0(klarna)} €</span></div>`:""}
+   ${klarnaPostenAlle.length?`<ul class="liste" style="margin-top:10px">${klarnaPostenAlle.map(p=>`<li class="zeile" style="flex-wrap:wrap;row-gap:6px${p.status==="gebucht"?";opacity:.5":""}">
+    <input class="feld" data-klarna-posten-bezeichnung="${p.id}" value="${esc(p.bezeichnung||"")}" placeholder="${L("klarnaBezeichnungPlatzh")}" style="flex:1;min-width:90px;margin-bottom:0;padding:8px 10px;font-size:13px">
+    <input class="ref-input" data-klarna-posten-betrag="${p.id}" value="${f2(p.betrag)}" style="width:60px">
+    <button class="weg" data-klarna-posten-loeschen="${p.id}">×</button>
+    <input class="feld" type="date" data-klarna-posten-faellig="${p.id}" value="${p.faellig?isoDatum(new Date(p.faellig)):""}" style="width:auto;flex-basis:60%;margin:0;padding:6px 8px;font-size:12px">
+    <select data-klarna-posten-status="${p.id}" style="flex:1;min-width:110px;border:1px solid var(--linie);border-radius:8px;padding:5px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit">
+     <option value="offen"${p.status==="offen"?" selected":""}>${L("klarnaStatusOffen")}</option>
+     <option value="in_bearbeitung"${p.status==="in_bearbeitung"?" selected":""}>${L("klarnaStatusBearbeitung")}</option>
+     <option value="gebucht"${p.status==="gebucht"?" selected":""}>${L("klarnaStatusGebucht")}</option>
+    </select></li>`).join("")}</ul>`:""}
    <div class="vert-kopf" data-klarna-toggle style="cursor:pointer;margin-top:10px">
-    <span>${L("klarnaOffeneRechnung")} ${ko.betrag!=null?f0(ko.betrag)+" €":"–"} ${klarnaDetailOffen?"▾":"▸"}</span>
+    <span>${L("klarnaPostenHinzufuegen")} ${klarnaDetailOffen?"▾":"▸"}</span>
    </div>
    ${klarnaDetailOffen?`<div style="margin-top:10px">
-    <input class="feld" id="klarnaBetrag" type="text" inputmode="decimal" placeholder="${L("klarnaBetragPlatzh")}" value="${ko.betrag!=null?f2(ko.betrag):""}">
-    <input class="feld" id="klarnaFaellig" type="date" value="${ko.faellig?isoDatum(new Date(ko.faellig)):""}" style="width:auto">
-    <input class="feld" id="klarnaRatenAnzahl" type="text" inputmode="numeric" placeholder="${L("klarnaRatenAnzahlPlatzh")}" value="${ko.ratenAnzahl!=null?ko.ratenAnzahl:""}">
-    <input class="feld" id="klarnaRatenBearbeitung" type="text" inputmode="decimal" placeholder="${L("klarnaRatenBearbeitungPlatzh")}" value="${ko.ratenInBearbeitung!=null?f2(ko.ratenInBearbeitung):""}">
-   </div>`:""}</div>`;})():""}
+    <input class="feld" id="klarnaNeuBetrag" type="text" inputmode="decimal" placeholder="${L("klarnaBetragPlatzh")}" value="${esc(klarnaPostenForm.betrag)}">
+    <input class="feld" id="klarnaNeuFaellig" type="date" value="${klarnaPostenForm.faellig}" style="width:auto">
+    <input class="feld" id="klarnaNeuBezeichnung" placeholder="${L("klarnaBezeichnungPlatzh")}" value="${esc(klarnaPostenForm.bezeichnung)}">
+    <button class="sekundaer" id="klarnaPostenHinzu">${L("hinzufuegen")}</button>
+   </div>`:""}</div>
   ${schuldForm?schuldFormHTML():`<div class="karte"><button class="sekundaer" id="schuldNeu">${L("schuldHinzufuegen")}</button></div>`}
   ${!S.schulden.length&&!schuldForm?`<p class="finfo" style="margin:-6px 0 0">${L("keineSchulden")}</p>`:""}`;
 }
@@ -2088,7 +2173,7 @@ function binden(){
   if(im)im.onclick=()=>{
     try{const d=JSON.parse(document.getElementById("impfeld").value);
       if(!d.eintraege)throw 0;
-      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{},schulden:d.schulden||[],kontostand:d.kontostand||null,umzugsdatum:d.umzugsdatum||null,grundgehaltUeberschreibung:d.grundgehaltUeberschreibung!=null?d.grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:d.erwarteteZusatzeinnahmen||[],bestaetigteBoni:d.bestaetigteBoni||{},gehaltDetails:d.gehaltDetails||{},klarnaOffen:d.klarnaOffen||{}};bereinigeDoppelteAbos();aktualisiereZusatzeinnahmenAbgleich();sichern();render();toast(L("tWiederhergestellt"))}
+      S={eintraege:d.eintraege,budget:{...STD,...(d.budget||{})},marken:d.marken||{},abos:d.abos||[],gelernt:d.gelernt||{},fix:d.fix||[],refUeberschreibung:d.refUeberschreibung||{},abRegeln:d.abRegeln||{},schulden:d.schulden||[],kontostand:d.kontostand||null,umzugsdatum:d.umzugsdatum||null,grundgehaltUeberschreibung:d.grundgehaltUeberschreibung!=null?d.grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:d.erwarteteZusatzeinnahmen||[],bestaetigteBoni:d.bestaetigteBoni||{},gehaltDetails:d.gehaltDetails||{},klarnaPosten:d.klarnaPosten||[]};bereinigeDoppelteAbos();aktualisiereZusatzeinnahmenAbgleich();autoBucheFaelligeSchulden();sichern();render();toast(L("tWiederhergestellt"))}
     catch(e){toast(L("tTextNichtLesbar"))}};
   const cf=document.getElementById("csvfeld");
   if(cf)cf.oninput=e=>{importText=e.target.value};
@@ -2201,22 +2286,53 @@ function binden(){
     S.schulden.push(eintrag);sichern();schuldForm=null;render();toast(L("tSchuldHinzugefuegt"))};
   document.querySelectorAll("[data-schuld-loeschen]").forEach(b=>b.onclick=()=>{
     S.schulden=S.schulden.filter(x=>x.id!==b.dataset.schuldLoeschen);sichern();render()});
+  document.querySelectorAll("[data-schuld-saldo]").forEach(el=>el.onchange=e=>{
+    const s=S.schulden.find(x=>x.id===el.dataset.schuldSaldo);if(!s)return;
+    const v=parseFloat(e.target.value.replace(",","."));
+    if(e.target.value.trim()===""||isNaN(v)){s.aktuellerSaldoOverride=null;s.aktuellerSaldoOverrideDatum=null}
+    else{s.aktuellerSaldoOverride=v;s.aktuellerSaldoOverrideDatum=Date.now();s.letzteAutoBuchungMonat=null}
+    sichern();autoBucheFaelligeSchulden();render()});
+  document.querySelectorAll("[data-schuld-autobuchung]").forEach(b=>b.onclick=()=>{
+    const s=S.schulden.find(x=>x.id===b.dataset.schuldAutobuchung);if(!s)return;
+    s.autoBuchungAktiv=s.autoBuchungAktiv===false?true:false;sichern();render()});
+  document.querySelectorAll("[data-schuld-zahlungsschutz-entfernen]").forEach(b=>b.onclick=()=>{
+    const s=S.schulden.find(x=>x.id===b.dataset.schuldZahlungsschutzEntfernen);if(!s)return;
+    s.zahlungsschutzProzent=0;sichern();render();toast(L("tZahlungsschutzEntfernt"))});
   const kToggle=document.querySelector("[data-klarna-toggle]");
   if(kToggle)kToggle.onclick=()=>{klarnaDetailOffen=!klarnaDetailOffen;render()};
-  [["klarnaBetrag","betrag"],["klarnaRatenAnzahl","ratenAnzahl"],["klarnaRatenBearbeitung","ratenInBearbeitung"]].forEach(([id,feld])=>{
-    const el=document.getElementById(id);
-    if(el)el.onchange=e=>{
-      const v=parseFloat(e.target.value.replace(",","."));
-      S.klarnaOffen=S.klarnaOffen||{};
-      if(e.target.value.trim()===""||isNaN(v))delete S.klarnaOffen[feld];else S.klarnaOffen[feld]=v;
-      sichern();render()};
-  });
-  const kFaellig=document.getElementById("klarnaFaellig");
-  if(kFaellig)kFaellig.onchange=e=>{
-    S.klarnaOffen=S.klarnaOffen||{};
-    if(!e.target.value)delete S.klarnaOffen.faellig;
-    else{const[jj,mm,tt]=e.target.value.split("-").map(Number);S.klarnaOffen.faellig=new Date(jj,mm-1,tt,12,0,0).getTime()}
-    sichern();render()};
+  document.querySelectorAll("[data-klarna-posten-bezeichnung]").forEach(el=>el.onchange=e=>{
+    const p=(S.klarnaPosten||[]).find(x=>x.id===el.dataset.klarnaPostenBezeichnung);if(!p)return;
+    p.bezeichnung=e.target.value;sichern()});
+  document.querySelectorAll("[data-klarna-posten-betrag]").forEach(el=>el.onchange=e=>{
+    const p=(S.klarnaPosten||[]).find(x=>x.id===el.dataset.klarnaPostenBetrag);if(!p)return;
+    const v=parseFloat(e.target.value.replace(",","."));
+    if(!isNaN(v)&&v>0){p.betrag=v;sichern();render()}});
+  document.querySelectorAll("[data-klarna-posten-faellig]").forEach(el=>el.onchange=e=>{
+    const p=(S.klarnaPosten||[]).find(x=>x.id===el.dataset.klarnaPostenFaellig);if(!p)return;
+    if(!e.target.value)p.faellig=null;
+    else{const[jj,mm,tt]=e.target.value.split("-").map(Number);p.faellig=new Date(jj,mm-1,tt,12,0,0).getTime()}
+    sichern();render()});
+  document.querySelectorAll("[data-klarna-posten-status]").forEach(el=>el.onchange=e=>{
+    const p=(S.klarnaPosten||[]).find(x=>x.id===el.dataset.klarnaPostenStatus);if(!p)return;
+    p.status=e.target.value;sichern();render()});
+  document.querySelectorAll("[data-klarna-posten-loeschen]").forEach(b=>b.onclick=()=>{
+    S.klarnaPosten=(S.klarnaPosten||[]).filter(x=>x.id!==b.dataset.klarnaPostenLoeschen);sichern();render()});
+  const kNB=document.getElementById("klarnaNeuBetrag");
+  if(kNB)kNB.oninput=e=>{klarnaPostenForm.betrag=e.target.value};
+  const kNF=document.getElementById("klarnaNeuFaellig");
+  if(kNF)kNF.onchange=e=>{klarnaPostenForm.faellig=e.target.value};
+  const kNBz=document.getElementById("klarnaNeuBezeichnung");
+  if(kNBz)kNBz.oninput=e=>{klarnaPostenForm.bezeichnung=e.target.value};
+  const kPH=document.getElementById("klarnaPostenHinzu");
+  if(kPH)kPH.onclick=()=>{
+    const betrag=parseFloat(klarnaPostenForm.betrag.replace(",","."));
+    if(!betrag||betrag<=0)return;
+    let faellig=null;
+    if(klarnaPostenForm.faellig){const[jj,mm,tt]=klarnaPostenForm.faellig.split("-").map(Number);faellig=new Date(jj,mm-1,tt,12,0,0).getTime()}
+    S.klarnaPosten=S.klarnaPosten||[];
+    S.klarnaPosten.push({id:"klp"+Date.now(),betrag,faellig,bezeichnung:klarnaPostenForm.bezeichnung.trim(),status:"offen"});
+    sichern();klarnaPostenForm={betrag:"",faellig:isoDatum(new Date()),bezeichnung:""};
+    render();toast(L("tKlarnaPostenHinzugefuegt"))};
   document.querySelectorAll("[data-konto-fenster]").forEach(b=>b.onclick=()=>{
     kontoverlaufFenster=parseInt(b.dataset.kontoFenster,10);render()});
   const eToggle=document.querySelector("[data-einkommen-toggle]");
@@ -2268,7 +2384,7 @@ function binden(){
 function bindenLoeschen(){
   const ja=document.getElementById("loeschenJa");
   if(ja)ja.onclick=()=>{
-    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null,grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:[],bestaetigteBoni:{},gehaltDetails:{},klarnaOffen:{}};
+    S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null,grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:[],bestaetigteBoni:{},gehaltDetails:{},klarnaPosten:[]};
     loeschenBestaetigen=false;sichern();tab="erfassen";render();toast(L("tAllesGeloescht"))};
   const ab=document.getElementById("loeschenAbbrechen");
   if(ab)ab.onclick=()=>{loeschenBestaetigen=false;render()};
