@@ -237,6 +237,8 @@ const T={
   tKlarnaPostenHinzugefuegt:"Posten hinzugefügt",
   aktuellerSaldoLabel:"Aktueller Saldo",
   saldoGeprueftAm:d=>`zuletzt geprüft am ${d}`,saldoNochNichtGeprueft:"noch nicht geprüft — trag den Saldo aus deiner Banking-App ein",
+  saldoPerScreenshot:"📷 Saldo per Screenshot einlesen",
+  tSaldoAusScreenshot:b=>`Saldo aus Screenshot übernommen: ${b} €`,
   autoBuchungAn:"Automatische Buchung an",autoBuchungAus:"Automatische Buchung aus",
   autoBuchungErklaerung:"Bucht jeden abgeschlossenen Monat automatisch die Rate und schreibt den Saldo fort, weil das auf dem echten Konto sowieso passiert. Ausschalten, falls du lieber selbst buchen willst.",
   letzteAutoBuchungText:m=>`Zuletzt automatisch gebucht: ${m}`,
@@ -434,6 +436,8 @@ const T={
   tKlarnaPostenHinzugefuegt:"Item added",
   aktuellerSaldoLabel:"Current balance",
   saldoGeprueftAm:d=>`last checked on ${d}`,saldoNochNichtGeprueft:"not checked yet — enter the balance from your banking app",
+  saldoPerScreenshot:"📷 Read balance from screenshot",
+  tSaldoAusScreenshot:b=>`Balance read from screenshot: ${b} €`,
   autoBuchungAn:"Auto-booking on",autoBuchungAus:"Auto-booking off",
   autoBuchungErklaerung:"Automatically books the payment for each completed month and carries the balance forward, since that happens on the real account anyway. Turn off if you'd rather book it yourself.",
   letzteAutoBuchungText:m=>`Last auto-booked: ${m}`,
@@ -786,15 +790,13 @@ function autoBucheFaelligeSchulden(){
   }
   return neueBuchungen.length;
 }
-function klarnaMonatsschnitt(){
-  const heute=new Date(),monatsSummen={};
+function klarnaProMonat(){
+  const monatsSummen={};
   S.eintraege.filter(e=>e.typ!=="einnahme"&&/klarna/i.test(e.notiz||"")).forEach(e=>{
-    const m=mk(new Date(e.ts));if(m===mk(heute))return;
+    const m=mk(new Date(e.ts));
     monatsSummen[m]=(monatsSummen[m]||0)+e.betrag;
   });
-  const monate=Object.keys(monatsSummen).sort().slice(-3);
-  if(!monate.length)return null;
-  return median(monate.map(m=>monatsSummen[m]));
+  return monatsSummen;
 }
 
 let S={eintraege:[],budget:{...STD},marken:{},abos:[],gelernt:{},fix:[],refUeberschreibung:{},abRegeln:{},schulden:[],kontostand:null,umzugsdatum:null,grundgehaltUeberschreibung:null,erwarteteZusatzeinnahmen:[],bestaetigteBoni:{},gehaltDetails:{},klarnaPosten:[]},tab="erfassen",wert="",kat="lebensmittel",notiz="",datum=isoDatum(new Date()),eintragTyp="ausgabe";
@@ -809,6 +811,7 @@ let kontoverlaufFenster=30;
 let einkommenDetailOffen=false;
 let klarnaDetailOffen=false;
 let klarnaPostenForm={betrag:"",faellig:isoDatum(new Date()),bezeichnung:""};
+let klarnaAusgewaehlterMonat=null;
 let zusatzForm={betrag:"",datum:isoDatum(new Date()),bezeichnung:""};
 let bonusNameEntwurf={};
 let settingsOffen=false;
@@ -1313,7 +1316,7 @@ const OCR_WOCHENTAGE={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,
   sonntag:0,montag:1,dienstag:2,mittwoch:3,donnerstag:4,freitag:5,samstag:6};
 const OCR_EINNAHME_WOERTER=/gutschrift|erstattung|rückerstattung|rueckerstattung|eingang|refund|credited?|received|reversal|einzahlung/i;
 function parseOCRBetrag(text){
-  const m=text.match(/([+-])?\s?\d{1,3}(?:[.\s]\d{3})*,\d{2}/);
+  const m=text.match(/([+-])?\s?\d+(?:[.\s]\d{3})*,\d{2}/);
   if(!m)return null;
   const v=parseBetragDE(m[0].replace(/^[+-]\s?/,""));
   if(isNaN(v))return null;
@@ -1353,7 +1356,7 @@ function parseOCRDatum(text,jetzt){
 }
 function bereinigeOCRZeile(zeile){
   return zeile
-    .replace(/[+-]?\s?\d{1,3}(?:[.\s]\d{3})*,\d{2}\s*(€|EUR)?/gi,"")
+    .replace(/[+-]?\s?\d+(?:[.\s]\d{3})*,\d{2}\s*(€|EUR)?/gi,"")
     .replace(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/g,"")
     .replace(/\b(\d{1,2})[.\/](\d{1,2})\.?/g,"")
     .replace(/\b\d{1,2}\.?\s*(jan|feb|mär|mar|apr|mai|jun|jul|aug|sep|okt|nov|dez)\w*\.?\s*(\d{4})?/gi,"")
@@ -1410,6 +1413,37 @@ function bildEinlesen(datei){
         umsatzart:"",drin:!dup,dup};
     });
     render();
+  }).catch(()=>{bildVerarbeitung=false;bildFehler=L("bildFehlerText");render()});
+}
+const OCR_SALDO_KEYWORDS=/saldo|kontostand|restschuld|aktueller\s*stand|gesamtsaldo|offener\s*betrag|noch\s*offen/i;
+function parseOCRSaldo(text){
+  const zeilen=text.split(/\n/).map(z=>z.trim()).filter(Boolean);
+  for(let i=0;i<zeilen.length;i++){
+    if(OCR_SALDO_KEYWORDS.test(zeilen[i])){
+      const info=parseOCRBetrag(zeilen[i]);
+      if(info)return Math.abs(info.betrag);
+      if(zeilen[i+1]){
+        const infoNaechste=parseOCRBetrag(zeilen[i+1]);
+        if(infoNaechste)return Math.abs(infoNaechste.betrag);
+      }
+    }
+  }
+  let groesster=null;
+  zeilen.forEach(zeile=>{
+    const info=parseOCRBetrag(zeile);
+    if(info&&(groesster==null||Math.abs(info.betrag)>groesster))groesster=Math.abs(info.betrag);
+  });
+  return groesster;
+}
+function saldoBildEinlesen(datei,schuldId){
+  bildFehler=null;bildVerarbeitung=true;render();
+  ladeTesseract().then(()=>Tesseract.recognize(datei,"deu")).then(({data})=>{
+    bildVerarbeitung=false;
+    const betrag=parseOCRSaldo(data.text||"");
+    if(betrag==null){bildFehler=L("bildKeineTreffer");render();return}
+    const s=S.schulden.find(x=>x.id===schuldId);
+    if(s){s.aktuellerSaldoOverride=betrag;s.aktuellerSaldoOverrideDatum=Date.now();s.letzteAutoBuchungMonat=null;sichern();autoBucheFaelligeSchulden()}
+    render();toast(L("tSaldoAusScreenshot")(f0(betrag)));
   }).catch(()=>{bildVerarbeitung=false;bildFehler=L("bildFehlerText");render()});
 }
 
@@ -1549,7 +1583,11 @@ function schuldFormHTML(){
    <button class="sekundaer" id="schuldAbbrechen">${L("abbrechen")}</button></div>`;
 }
 function schulden(){
-  const klarna=klarnaMonatsschnitt();
+  const klarnaMonate=klarnaProMonat();
+  const aktMonatKlarna=mk(new Date());
+  const klarnaAbgeschlosseneMonate=Object.keys(klarnaMonate).filter(m=>m!==aktMonatKlarna).sort();
+  const klarnaMonatAuswahl=klarnaAusgewaehlterMonat&&klarnaMonate[klarnaAusgewaehlterMonat]!=null?klarnaAusgewaehlterMonat:klarnaAbgeschlosseneMonate[klarnaAbgeschlosseneMonate.length-1];
+  const klarnaBetragAuswahl=klarnaMonatAuswahl?klarnaMonate[klarnaMonatAuswahl]:null;
   const karten=S.schulden.map(s=>{
     const st=berechneSchuldStatus(s),zyklus=s.zyklus||"monat";
     const zsProzent=s.modus==="rate"?(s.zahlungsschutzProzent||0):0;
@@ -1570,7 +1608,10 @@ function schulden(){
      ${s.modus==="rate"?`<div class="feldzeile" style="margin:10px 0"><div><label for="schuldSaldo_${s.id}">${L("aktuellerSaldoLabel")}</label>
       <div class="finfo">${s.aktuellerSaldoOverrideDatum?L("saldoGeprueftAm")(datumKurz(s.aktuellerSaldoOverrideDatum)):L("saldoNochNichtGeprueft")}</div></div>
       <input class="zahlfeld" id="schuldSaldo_${s.id}" data-schuld-saldo="${s.id}" type="text" inputmode="decimal" value="${s.aktuellerSaldoOverride!=null?f2(s.aktuellerSaldoOverride):""}"></div>
-     ${s.aktuellerSaldoOverride!=null?`<div class="chips" style="margin-bottom:10px">
+     <label class="sekundaer" style="display:block;text-align:center;cursor:pointer;margin-top:-2px">${bildVerarbeitung?L("bildWirdVerarbeitet"):L("saldoPerScreenshot")}
+      <input type="file" accept="image/png,image/jpeg" data-schuld-saldo-bild="${s.id}" style="display:none"${bildVerarbeitung?" disabled":""}></label>
+     ${bildFehler?`<p class="finfo" style="color:var(--rot);margin-top:6px">${esc(bildFehler)}</p>`:""}
+     ${s.aktuellerSaldoOverride!=null?`<div class="chips" style="margin:10px 0">
       <button class="chip${s.autoBuchungAktiv!==false?" on":""}" data-schuld-autobuchung="${s.id}">${s.autoBuchungAktiv!==false?L("autoBuchungAn"):L("autoBuchungAus")}</button>
      </div>
      <p class="finfo" style="margin-top:-6px">${L("autoBuchungErklaerung")}</p>
@@ -1594,7 +1635,10 @@ function schulden(){
   return`${karten}
   <div class="karte"><h2>Klarna</h2><p class="text">${L("klarnaHinweis")}</p>
    <div class="reihe stark"><span>${L("klarnaOffeneSumme")}</span><span class="wert">${f0(klarnaSummeOffen)} €</span></div>
-   ${klarna?`<div class="reihe"><span>${L("klarnaMonatsschnitt")}</span><span class="wert">${f0(klarna)} €</span></div>`:""}
+   ${klarnaAbgeschlosseneMonate.length?`<div class="reihe"><span>
+     <select data-klarna-monat style="border:1px solid var(--linie);border-radius:8px;padding:4px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit">
+      ${klarnaAbgeschlosseneMonate.slice().reverse().map(m=>{const[jj,mm]=m.split("-");return`<option value="${m}"${m===klarnaMonatAuswahl?" selected":""}>${MONATSNAMEN[lang][+mm-1]} ${jj}</option>`}).join("")}
+     </select></span><span class="wert">${f0(klarnaBetragAuswahl)} €</span></div>`:""}
    ${klarnaPostenAlle.length?`<ul class="liste" style="margin-top:10px">${klarnaPostenAlle.map(p=>`<li class="zeile" style="flex-wrap:wrap;row-gap:6px${p.status==="gebucht"?";opacity:.5":""}">
     <input class="feld" data-klarna-posten-bezeichnung="${p.id}" value="${esc(p.bezeichnung||"")}" placeholder="${L("klarnaBezeichnungPlatzh")}" style="flex:1;min-width:90px;margin-bottom:0;padding:8px 10px;font-size:13px">
     <input class="ref-input" data-klarna-posten-betrag="${p.id}" value="${f2(p.betrag)}" style="width:60px">
@@ -2298,8 +2342,13 @@ function binden(){
   document.querySelectorAll("[data-schuld-zahlungsschutz-entfernen]").forEach(b=>b.onclick=()=>{
     const s=S.schulden.find(x=>x.id===b.dataset.schuldZahlungsschutzEntfernen);if(!s)return;
     s.zahlungsschutzProzent=0;sichern();render();toast(L("tZahlungsschutzEntfernt"))});
+  document.querySelectorAll("[data-schuld-saldo-bild]").forEach(inp=>inp.onchange=e=>{
+    const datei=e.target.files[0];if(!datei)return;
+    saldoBildEinlesen(datei,inp.dataset.schuldSaldoBild);
+    e.target.value=""});
   const kToggle=document.querySelector("[data-klarna-toggle]");
   if(kToggle)kToggle.onclick=()=>{klarnaDetailOffen=!klarnaDetailOffen;render()};
+  document.querySelectorAll("[data-klarna-monat]").forEach(el=>el.onchange=e=>{klarnaAusgewaehlterMonat=e.target.value;render()});
   document.querySelectorAll("[data-klarna-posten-bezeichnung]").forEach(el=>el.onchange=e=>{
     const p=(S.klarnaPosten||[]).find(x=>x.id===el.dataset.klarnaPostenBezeichnung);if(!p)return;
     p.bezeichnung=e.target.value;sichern()});
