@@ -244,6 +244,12 @@ const T={
   letzteAutoBuchungText:m=>`Zuletzt automatisch gebucht: ${m}`,
   zahlungsschutzKurzLabel:"Zahlungsschutz",keinZahlungsschutz:"keiner",
   zahlungsschutzEntfernen:"Zahlungsschutz entfernen",
+  zahlungsschutzProzentHinweis:"in % p. a., zum Bearbeiten antippen",
+  naechsteAbbuchungText:(b,d)=>`Nächste Abbuchung: ~${b} € am ${d}`,
+  sondertilgungHeading:"Sondertilgung eintragen",
+  sondertilgungErklaerung:"Zusätzliche Einzahlung, die den Saldo direkt verringert — der Zins passt sich danach automatisch an den neuen, niedrigeren Betrag an.",
+  sondertilgungBuchen:"Einzahlung buchen",
+  tSondertilgungGebucht:"Sondertilgung gebucht, Saldo aktualisiert",
   tZahlungsschutzEntfernt:"Zahlungsschutz entfernt",
   tSchuldHinzugefuegt:"Schuld hinzugefügt",
   baldFaellig:"Diese Woche fällig",heute:"heute",
@@ -443,6 +449,12 @@ const T={
   letzteAutoBuchungText:m=>`Last auto-booked: ${m}`,
   zahlungsschutzKurzLabel:"Payment protection",keinZahlungsschutz:"none",
   zahlungsschutzEntfernen:"Remove payment protection",
+  zahlungsschutzProzentHinweis:"in % p.a., tap to edit",
+  naechsteAbbuchungText:(b,d)=>`Next debit: ~${b} € on ${d}`,
+  sondertilgungHeading:"Log an extra payment",
+  sondertilgungErklaerung:"An additional payment that directly reduces the balance — interest then adjusts automatically to the new, lower amount.",
+  sondertilgungBuchen:"Book payment",
+  tSondertilgungGebucht:"Extra payment booked, balance updated",
   tZahlungsschutzEntfernt:"Payment protection removed",
   tSchuldHinzugefuegt:"Debt added",
   baldFaellig:"Due this week",heute:"today",
@@ -812,6 +824,9 @@ let einkommenDetailOffen=false;
 let klarnaDetailOffen=false;
 let klarnaPostenForm={betrag:"",faellig:isoDatum(new Date()),bezeichnung:""};
 let klarnaAusgewaehlterMonat=null;
+let schuldDetailOffen={};
+let sondertilgungOffenFuer=null;
+let sondertilgungForm={betrag:"",datum:isoDatum(new Date())};
 let zusatzForm={betrag:"",datum:isoDatum(new Date()),bezeichnung:""};
 let bonusNameEntwurf={};
 let settingsOffen=false;
@@ -1547,6 +1562,17 @@ function restlaufzeitText(sim,zyklus){
   const jahre=Math.floor(monate/12),rm=monate%12;
   return jahre>0?L("restlaufzeitJM")(jahre,rm):L("restlaufzeitM")(monate);
 }
+function naechsteSchuldFaelligkeit(s){
+  if(s.modus!=="rate")return null;
+  const verlauf=ratenverlaufFuer(s.name);
+  if(!verlauf.length)return null;
+  const tage=verlauf.slice(-6).map(v=>new Date(v.ts).getDate());
+  const tag=Math.round(median(tage));
+  const heute=new Date();
+  let naechste=new Date(heute.getFullYear(),heute.getMonth(),tag,12,0,0);
+  if(naechste<=heute)naechste=new Date(heute.getFullYear(),heute.getMonth()+1,tag,12,0,0);
+  return naechste;
+}
 function neueSchuldForm(){
   return{name:"",modus:"rest",restbetrag:"",alsAmDatum:isoDatum(new Date()),
     gesamtbetrag:"",startDatum:isoDatum(new Date()),sollzins:"",rate:"",zusatzkosten:"",zyklus:"monat",
@@ -1600,11 +1626,15 @@ function schulden(){
     const zinsOhne=monateOhne!==null?(st.kuenftig.zinsGesamt+st.kuenftig.zahlungsschutzGesamt)-(st.ohneZusatz.zinsGesamt+st.ohneZusatz.zahlungsschutzGesamt):null;
     const monateErh=vergleichbar&&!st.mitErhoehterRate.endlos?(st.kuenftig.perioden-st.mitErhoehterRate.perioden)*monateProPeriode(zyklus):null;
     const zinsErh=monateErh!==null?st.kuenftig.zinsGesamt-st.mitErhoehterRate.zinsGesamt:null;
+    const naechsteFaellig=naechsteSchuldFaelligkeit(s);
+    const offen=!!schuldDetailOffen[s.id];
     return`<div class="karte">
-     <div class="topf-kopf"><span class="topf-lab">${esc(s.name)}</span></div>
-     <div class="topf-zahl">${f0(st.restAktuell)}<span class="topf-eur">€ ${L("restschuld")}${st.geschaetzt?" · "+L("geschaetztLabel"):""}</span></div>
+     <div class="topf-kopf" data-schuld-toggle="${s.id}" style="cursor:pointer"><span class="topf-lab">${esc(s.name)}</span><span class="topf-zyk">${offen?"▾":"▸"}</span></div>
+     <div class="topf-zahl" data-schuld-toggle="${s.id}" style="cursor:pointer">-${f0(st.restAktuell)}<span class="topf-eur">€ ${L("restschuld")}${st.geschaetzt?" · "+L("geschaetztLabel"):""}</span></div>
+     ${naechsteFaellig?`<p class="finfo">${L("naechsteAbbuchungText")(f0(st.rate),datumKurz(naechsteFaellig.getTime()))}</p>`:""}
      ${bezahltAnteil!==null?`<div class="spur"><div class="fuell" style="width:${bezahltAnteil}%;background:${bezahltRoh<0?"var(--rot)":"var(--gruen)"}"></div></div>
      <div class="topf-fuss">${bezahltRoh>=0?L("bezahltAnteilText")(f0(bezahltRoh)):L("bezahltAnteilNegativText")(f0(Math.abs(bezahltRoh)))}</div>`:""}
+     ${offen?`
      ${s.modus==="rate"?`<div class="feldzeile" style="margin:10px 0"><div><label for="schuldSaldo_${s.id}">${L("aktuellerSaldoLabel")}</label>
       <div class="finfo">${s.aktuellerSaldoOverrideDatum?L("saldoGeprueftAm")(datumKurz(s.aktuellerSaldoOverrideDatum)):L("saldoNochNichtGeprueft")}</div></div>
       <input class="zahlfeld" id="schuldSaldo_${s.id}" data-schuld-saldo="${s.id}" type="text" inputmode="decimal" value="${s.aktuellerSaldoOverride!=null?f2(s.aktuellerSaldoOverride):""}"></div>
@@ -1615,8 +1645,20 @@ function schulden(){
       <button class="chip${s.autoBuchungAktiv!==false?" on":""}" data-schuld-autobuchung="${s.id}">${s.autoBuchungAktiv!==false?L("autoBuchungAn"):L("autoBuchungAus")}</button>
      </div>
      <p class="finfo" style="margin-top:-6px">${L("autoBuchungErklaerung")}</p>
-     ${s.letzteAutoBuchungMonat?`<p class="finfo">${L("letzteAutoBuchungText")(s.letzteAutoBuchungMonat)}</p>`:""}`:""}
-     <div class="reihe"><span>${L("zahlungsschutzKurzLabel")}</span><span class="wert">${zsProzent?f2(zsProzent)+" % p.a. ":L("keinZahlungsschutz")}${zsProzent?`<button class="weg" data-schuld-zahlungsschutz-entfernen="${s.id}" title="${L("zahlungsschutzEntfernen")}">×</button>`:""}</span></div>`:""}
+     ${s.letzteAutoBuchungMonat?`<p class="finfo">${L("letzteAutoBuchungText")(s.letzteAutoBuchungMonat)}</p>`:""}
+     <div class="vert-kopf" data-sondertilgung-toggle="${s.id}" style="cursor:pointer;margin-top:10px">
+      <span>${L("sondertilgungHeading")} ${sondertilgungOffenFuer===s.id?"▾":"▸"}</span>
+     </div>
+     ${sondertilgungOffenFuer===s.id?`<div style="margin-top:10px">
+      <p class="finfo">${L("sondertilgungErklaerung")}</p>
+      <input class="feld" id="sondertilgungBetrag" type="text" inputmode="decimal" placeholder="${L("betragPlatzh")}" value="${esc(sondertilgungForm.betrag)}">
+      <input class="feld" id="sondertilgungDatum" type="date" value="${sondertilgungForm.datum}" style="width:auto">
+      <button class="sekundaer" id="sondertilgungHinzu">${L("sondertilgungBuchen")}</button>
+     </div>`:""}`:""}
+     <div class="feldzeile" style="margin:10px 0"><div><label for="schuldZs_${s.id}">${L("zahlungsschutzKurzLabel")}</label>
+      <div class="finfo">${L("zahlungsschutzProzentHinweis")}</div></div>
+      <input class="zahlfeld" id="schuldZs_${s.id}" data-schuld-zahlungsschutz="${s.id}" type="text" inputmode="decimal" value="${zsProzent?f2(zsProzent):""}"></div>
+     ${zsProzent?`<button class="sekundaer" data-schuld-zahlungsschutz-entfernen="${s.id}" style="margin-top:-6px">${L("zahlungsschutzEntfernen")}</button>`:""}`:""}
      <div class="reihe"><span>${L("sollzinsLabel")}</span><span class="wert">${f2(s.sollzins)} %</span></div>
      <div class="reihe"><span>${zyklus==="quartal"?L("rateQuartal"):L("rateMonat")}</span><span class="wert">${f0(st.rate)} € (${L("davonZins")} ~${f0(zinsAktuell)} €${zsAktuell?" + "+L("zahlungsschutzKurz")+" ~"+f0(zsAktuell)+" €":""})</span></div>
      ${st.trend?`<div class="reihe"><span>${L("ratentrendLabel")}</span><span class="wert">${st.trend.faellt?L("trendFallend")(f0(Math.abs(st.trend.diffProMonat))):st.trend.flach?L("trendFlach"):L("trendSteigend")(f0(st.trend.diffProMonat))}</span></div>
@@ -1627,13 +1669,12 @@ function schulden(){
      ${(s.zusatzkosten||zsProzent)&&monateOhne!==null?`<p class="finfo" style="margin-top:8px">${L("vergleichOhneZusatz")(monateOhne,f0(Math.abs(zinsOhne)))}</p>`:""}
      ${monateErh!==null?`<p class="finfo">${L("vergleichErhoehteRate")(f0(st.erhoehteRate),monateErh,f0(Math.abs(zinsErh)))}</p>`:""}
      <button class="weg" data-schuld-loeschen="${s.id}" style="margin-top:10px">${L("loeschen")}</button>
-    </div>`;
+    `:""}</div>`;
   }).join("");
   const klarnaPostenAlle=(S.klarnaPosten||[]).slice().sort((a,b)=>(a.faellig||Infinity)-(b.faellig||Infinity));
   const klarnaPostenOffen=klarnaPostenAlle.filter(p=>p.status!=="gebucht");
   const klarnaSummeOffen=klarnaPostenOffen.reduce((s,p)=>s+p.betrag,0);
-  return`${karten}
-  <div class="karte"><h2>Klarna</h2><p class="text">${L("klarnaHinweis")}</p>
+  const klarnaHTML=`<div class="karte"><h2>Klarna</h2><p class="text">${L("klarnaHinweis")}</p>
    <div class="reihe stark"><span>${L("klarnaOffeneSumme")}</span><span class="wert">${f0(klarnaSummeOffen)} €</span></div>
    ${klarnaAbgeschlosseneMonate.length?`<div class="reihe"><span>
      <select data-klarna-monat style="border:1px solid var(--linie);border-radius:8px;padding:4px 6px;font-size:12px;background:var(--bg);color:var(--tinte);font-family:inherit">
@@ -1657,7 +1698,8 @@ function schulden(){
     <input class="feld" id="klarnaNeuFaellig" type="date" value="${klarnaPostenForm.faellig}" style="width:auto">
     <input class="feld" id="klarnaNeuBezeichnung" placeholder="${L("klarnaBezeichnungPlatzh")}" value="${esc(klarnaPostenForm.bezeichnung)}">
     <button class="sekundaer" id="klarnaPostenHinzu">${L("hinzufuegen")}</button>
-   </div>`:""}</div>
+   </div>`:""}</div>`;
+  return`${klarnaHTML}${karten}
   ${schuldForm?schuldFormHTML():`<div class="karte"><button class="sekundaer" id="schuldNeu">${L("schuldHinzufuegen")}</button></div>`}
   ${!S.schulden.length&&!schuldForm?`<p class="finfo" style="margin:-6px 0 0">${L("keineSchulden")}</p>`:""}`;
 }
@@ -2346,6 +2388,34 @@ function binden(){
     const datei=e.target.files[0];if(!datei)return;
     saldoBildEinlesen(datei,inp.dataset.schuldSaldoBild);
     e.target.value=""});
+  document.querySelectorAll("[data-schuld-toggle]").forEach(el=>el.onclick=()=>{
+    const id=el.dataset.schuldToggle;schuldDetailOffen[id]=!schuldDetailOffen[id];render()});
+  document.querySelectorAll("[data-schuld-zahlungsschutz]").forEach(el=>el.onchange=e=>{
+    const s=S.schulden.find(x=>x.id===el.dataset.schuldZahlungsschutz);if(!s)return;
+    const v=parseFloat(e.target.value.replace(",","."));
+    s.zahlungsschutzProzent=(e.target.value.trim()===""||isNaN(v))?0:v;
+    sichern();render()});
+  document.querySelectorAll("[data-sondertilgung-toggle]").forEach(el=>el.onclick=()=>{
+    const id=el.dataset.sondertilgungToggle;
+    sondertilgungOffenFuer=sondertilgungOffenFuer===id?null:id;
+    sondertilgungForm={betrag:"",datum:isoDatum(new Date())};render()});
+  const stB=document.getElementById("sondertilgungBetrag");
+  if(stB)stB.oninput=e=>{sondertilgungForm.betrag=e.target.value};
+  const stD=document.getElementById("sondertilgungDatum");
+  if(stD)stD.onchange=e=>{sondertilgungForm.datum=e.target.value};
+  const stH=document.getElementById("sondertilgungHinzu");
+  if(stH)stH.onclick=()=>{
+    const betrag=parseFloat(sondertilgungForm.betrag.replace(",","."));
+    if(!betrag||betrag<=0||!sondertilgungOffenFuer)return;
+    const s=S.schulden.find(x=>x.id===sondertilgungOffenFuer);
+    if(!s||s.aktuellerSaldoOverride==null)return;
+    s.aktuellerSaldoOverride=Math.max(0,Math.round((s.aktuellerSaldoOverride-betrag)*100)/100);
+    const[jj,mm,tt]=sondertilgungForm.datum.split("-").map(Number);
+    S.eintraege.push({id:"sonder"+Date.now(),ts:new Date(jj,mm-1,tt,12,0,0).getTime(),betrag,
+      typ:"ausgabe",kat:"sonstiges",notiz:s.name,sonderzahlung:true,schuldId:s.id});
+    S.eintraege.sort((a,b)=>b.ts-a.ts);
+    sichern();sondertilgungOffenFuer=null;sondertilgungForm={betrag:"",datum:isoDatum(new Date())};
+    render();toast(L("tSondertilgungGebucht"))};
   const kToggle=document.querySelector("[data-klarna-toggle]");
   if(kToggle)kToggle.onclick=()=>{klarnaDetailOffen=!klarnaDetailOffen;render()};
   document.querySelectorAll("[data-klarna-monat]").forEach(el=>el.onchange=e=>{klarnaAusgewaehlterMonat=e.target.value;render()});
